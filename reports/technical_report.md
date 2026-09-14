@@ -152,7 +152,55 @@ throughout.
 
 ## 8. Error analysis
 
-(TODO.)
+Per-example predictions for the image-only CNN baseline (Section 4 checkpoint,
+real 80-study test set) written by `error_analysis.py` to
+`results/error_analysis_predictions.csv`, with report text attached to every
+prediction so errors can be read, not just counted.
+
+**Confusion breakdown (threshold 0.5):** TP=30, TN=23, FP=12, FN=15 —
+sensitivity (recall) 0.667, specificity 0.657, precision 0.714. Roughly
+balanced error profile, no strong bias toward over- or under-calling
+abnormality overall, but the *type* of error clusters sharply once you read
+the report text attached to each case.
+
+**False negatives cluster around subtle, chronic findings.** Of the 15 FN
+cases (model confidently predicted "normal," ground truth "abnormal"), the
+large majority describe calcifications, granulomas, or mild/minimal changes:
+*"calcified density in the left mid lung, most likely a calcified
+granuloma"*; *"Scattered calcifications... compatible with prior
+granulomatous disease"*; *"Nodular densities consistent with chronic
+granulomatous disease"*; *"left hilar calcifications... unchanged from the
+prior"*; *"Minimal right middle lobe atelectasis"*; *"Mild hyperinflation"*;
+*"Elevated right hemidiaphragm"*; *"Right hemidiaphragm eventration"*. These
+are visually subtle, low-contrast, often chronic/healed findings — exactly
+the category a 240-image training set gives the least exposure to, since
+each specific subtle pattern (granuloma vs. eventration vs. mild
+atelectasis) appears only a handful of times. This is a data-scale problem,
+not obviously a modeling-choice problem — worth re-checking against the
+full-scale run before concluding anything stronger.
+
+**False positives cluster around images with visually salient but
+non-diagnostic content.** Of the 12 FP cases (model confidently predicted
+"abnormal," ground truth "normal"), several involve postsurgical hardware
+or reference to a prior/stable state rather than a clean, unremarkable
+study: *"Postsurgical changes of ... sternotomy with screw fixation of
+anterior ... plates"*; two cases reading *"Stable cardiomediastinal
+silhouette. No focal pulmonary opacity, pleural effusion or pneumothorax"*.
+A plausible mechanism: sternotomy wires/screws are visually striking
+artifacts in a chest X-ray, and the model may be keying on "does this image
+look unusual" rather than on disease-specific visual patterns — since the
+`Abnormal` label is disease-presence, not image-unusualness, postsurgical
+hardware without active disease is coded "normal" but may still look
+visually anomalous to the model. This would be a genuine (if mundane)
+shortcut-adjacent finding, distinct from the site/scanner shortcut in
+Section 5 but in the same family: the model may be responding to salience
+rather than pathology in some cases.
+
+**Caveat:** both patterns are read from only 27 misclassified examples on a
+240-image-trained model — suggestive, not statistically robust. The
+concrete, useful next step is re-running this same script against the
+full-scale checkpoint and checking whether the same two patterns persist,
+weaken, or disappear with more training data.
 
 ## 9. Limitations
 
@@ -167,9 +215,10 @@ throughout.
 ## 10. Future work
 
 - Run the full-scale training job on Kaggle (Gate 1 completion) and re-run
-  every Gate 3 evaluation (shift, shortcut, MC-dropout/abstention) against
-  it — small-scale results above are directionally interesting but need
-  confirming at scale, especially the null abstention result.
+  every Gate 3 evaluation (shift, shortcut, MC-dropout/abstention) plus
+  `error_analysis.py` (Section 8) against it — small-scale results above are
+  directionally interesting but need confirming at scale, especially the
+  null abstention result and the two error-analysis patterns.
 - Investigate the shortcut-probe finding further: which features drive the
   perfect dataset separability (image statistics/preprocessing artifacts vs.
   something more concerning)? Would inform whether domain-adaptation or

@@ -44,7 +44,8 @@ medical-vision-language-ai-portfolio/
 │   ├── text_robustness.py           # missing/noisy/mismatched-text robustness test
 │   ├── shift_eval.py                # cross-dataset distribution-shift test
 │   ├── shortcut_probe.py            # dataset-of-origin linear probe (shortcut-learning check)
-│   └── uncertainty_mc_dropout.py, abstention_eval.py  # MC-dropout uncertainty + risk-coverage
+│   ├── uncertainty_mc_dropout.py, abstention_eval.py  # MC-dropout uncertainty + risk-coverage
+│   └── error_analysis.py            # per-example predictions + FP/FN report-text inspection
 ├── notebooks/kaggle_baseline_training.ipynb   # run this on Kaggle for real GPU training
 ├── data/                       # not committed; see data/README.md
 ├── results/                    # metrics, plots, Grad-CAM examples (generated)
@@ -128,6 +129,14 @@ real BiomedCLIP load and inference (not mocked).
       real shortcut-learning signal); MC-dropout uncertainty did not
       outperform random abstention at this scale (honest null result). All
       of this needs re-running against the full-scale checkpoint once it exists.
+- [x] Error analysis (small-scale): real per-example predictions inspected
+      against report text (`results/error_analysis_predictions.csv`). False
+      negatives cluster around subtle/chronic findings (calcifications,
+      granulomas, mild changes); false positives cluster around images with
+      postsurgical hardware/visually salient-but-non-diagnostic content —
+      see `reports/technical_report.md` Section 8.
 - [ ] Gate 4 (supervisor-ready): technical report and model card are filled in
-      with real small-scale results; still pending the full-scale training
-      run, full-scale re-run of every Gate 3 evaluation, and a final polish pass.
+      with real small-scale results, including error analysis; the one
+      remaining piece is the full-scale Kaggle training run (deliberately
+      saved for last) and re-running every Gate 3 + error-analysis check
+      against it, then a final polish pass.

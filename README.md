@@ -40,6 +40,7 @@ medical-vision-language-ai-portfolio/
 │   ├── eval.py                      # AUROC/AUPRC, confusion matrix, ROC, calibration/ECE
 │   ├── gradcam.py                   # Grad-CAM overlays on test images
 │   ├── retrieval_baseline.py        # zero-shot BiomedCLIP image<->report retrieval
+│   ├── fusion_baseline.py           # image-only vs text-only vs fusion classification probes
 │   ├── text_robustness.py           # missing/noisy/mismatched-text robustness test
 │   ├── shift_eval.py                # cross-dataset distribution-shift test
 │   ├── shortcut_probe.py            # dataset-of-origin linear probe (shortcut-learning check)
@@ -108,10 +109,16 @@ real BiomedCLIP load and inference (not mocked).
       240-study) IU X-Ray subsample locally; the full-scale Kaggle GPU run
       (2,568 studies, 224px, DenseNet-121) is still pending and is what
       should anchor the final reported numbers.
-- [x] Gate 2 (multimodal value, partial): zero-shot BiomedCLIP retrieval and
-      text-robustness run for real on a 400-study IU X-Ray subsample —
-      results in `results/retrieval_metrics.json` and
-      `results/text_robustness.json`. No fine-tuned fusion baseline yet.
+- [x] Gate 2 (multimodal value): zero-shot BiomedCLIP retrieval, text-robustness,
+      and an image-only/text-only/fusion probe comparison all run for real
+      (`results/retrieval_metrics.json`, `results/text_robustness.json`,
+      `results/fusion_baseline.json`). Fusion technically beats the best
+      unimodal score (0.940 vs 0.937 AUROC) but the margin is within noise;
+      the real finding is text-only (0.937) far outperforming image-only
+      (0.653), which is the known label-leakage risk (label derived from
+      report text) showing up empirically rather than a genuine multimodal
+      win — see `reports/technical_report.md` Section 7 for the full,
+      deliberately unflattering discussion.
 - [x] Gate 3 (trustworthy evaluation, small-scale): calibration/ECE,
       cross-dataset shift, shortcut probe, and MC-dropout uncertainty/abstention
       all run for real (see `reports/technical_report.md` Section 5 and

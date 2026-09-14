@@ -14,9 +14,11 @@ cross-dataset distribution-shift check.
 
 **Multimodal baseline.** [BiomedCLIP](https://huggingface.co/microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224)
 (PubMedBERT text tower + ViT-B/16 image tower, pretrained on PubMed Central
-image-text pairs), used zero-shot for image<->report retrieval. No fine-tuning
-yet — this measures how well an off-the-shelf medical VLM already aligns
-images and reports on this data before any training compute is spent.
+image-text pairs), used zero-shot for image<->report retrieval, and frozen
+(no fine-tuning) as feature extractors for a logistic-regression fusion
+classifier (`fusion_baseline.py`) — image-only vs. text-only vs. fusion
+probes trained on identical splits, to directly test whether fusion adds
+value beyond the best single modality.
 
 ## Metrics
 
@@ -53,6 +55,12 @@ retrieval-based evaluation (which doesn't use the derived label at all) but
 does mean the classification numbers should be read as an upper bound, not a
 tight estimate, of image-only vs. multimodal advantage.
 
+**This risk is now confirmed empirically, not just theoretical.** The fusion
+baseline (below) shows text-only classification (AUROC 0.937) dramatically
+outperforming image-only (0.653) — consistent with the text classifier
+partly reading its own label back out of correlated report text, not
+demonstrating that reports carry far more diagnostic signal than images.
+
 ## Trustworthy-evaluation results (real data, small-scale)
 
 All results below are from a small, real (non-synthetic) 240/80/80-study
@@ -73,6 +81,13 @@ the full-scale-run caveat. Full numbers: `results/shift_metrics.json`,
   abstention performed no better than random. Honest null result at this
   scale — needs re-checking on the full-scale run before concluding
   anything about whether MC-dropout uncertainty is useful here.
+- **Fusion baseline** (image-only 0.653 vs. text-only 0.937 vs. fusion 0.940
+  AUROC, same real split as the CNN baseline): fusion technically edges out
+  the best unimodal score, but by 0.003 AUROC on 80 test examples — not a
+  real effect. The dominant result is text-only crushing image-only, which
+  is the label-leakage risk above showing up empirically rather than
+  evidence of genuine multimodal benefit. See
+  `reports/technical_report.md` Section 7 for the full discussion.
 
 ## Limitations
 
@@ -86,5 +101,8 @@ the full-scale-run caveat. Full numbers: `results/shift_metrics.json`,
 - Chest X-Ray Pneumonia (used only as the cross-dataset shift test) has no
   patient IDs at all — its own split is image-wise, a pre-existing limitation
   disclosed in `DATASET_DATASHEET.md`.
-- No fine-tuned multimodal fusion baseline yet — only zero-shot BiomedCLIP
-  retrieval has been run.
+- The fusion baseline's classification comparison is confounded by
+  text-label leakage (see above) — it does not cleanly answer "does fusion
+  help," only "does fusion beat a leaky text baseline" (barely, within
+  noise). A clean fusion test needs either a non-text-derived label or
+  evaluation on the retrieval task instead.

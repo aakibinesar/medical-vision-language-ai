@@ -13,6 +13,7 @@ results_mm_smoke/
 results/*.png
 results/*.csv
 !results/mc_dropout_predictions.csv
+!results/error_analysis_predictions.csv
 results/gradcam_examples/*.png
 !results/gradcam_examples/.gitkeep
 *.pt

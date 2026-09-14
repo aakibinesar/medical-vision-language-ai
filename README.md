@@ -40,7 +40,10 @@ medical-vision-language-ai-portfolio/
 │   ├── eval.py                      # AUROC/AUPRC, confusion matrix, ROC, calibration/ECE
 │   ├── gradcam.py                   # Grad-CAM overlays on test images
 │   ├── retrieval_baseline.py        # zero-shot BiomedCLIP image<->report retrieval
-│   └── text_robustness.py           # missing/noisy/mismatched-text robustness test
+│   ├── text_robustness.py           # missing/noisy/mismatched-text robustness test
+│   ├── shift_eval.py                # cross-dataset distribution-shift test
+│   ├── shortcut_probe.py            # dataset-of-origin linear probe (shortcut-learning check)
+│   └── uncertainty_mc_dropout.py, abstention_eval.py  # MC-dropout uncertainty + risk-coverage
 ├── notebooks/kaggle_baseline_training.ipynb   # run this on Kaggle for real GPU training
 ├── data/                       # not committed; see data/README.md
 ├── results/                    # metrics, plots, Grad-CAM examples (generated)
@@ -97,15 +100,27 @@ real BiomedCLIP load and inference (not mocked).
 
 ## Status against the Project 1 stage gates
 
-- [x] Gate 0 (data feasibility): pneumonia loader done; IU X-Ray loader written,
-      not yet run against real downloaded data.
+- [x] Gate 0 (data feasibility): pneumonia loader done; IU X-Ray loader run
+      against real downloaded metadata (3,666 studies split by `uid`; see
+      `DATASET_DATASHEET.md`).
 - [x] Gate 1 (unimodal baseline): ResNet-18/DenseNet-121 trainer, calibration,
-      Grad-CAM — implemented and smoke-tested.
-- [ ] Gate 2 (multimodal value): zero-shot BiomedCLIP retrieval baseline and
-      text-robustness test implemented and smoke-tested; not yet run on real
-      IU X-Ray data, and no fine-tuned fusion baseline yet.
-- [ ] Gate 3 (trustworthy evaluation): calibration/ECE done; distribution-shift
-      (pneumonia cross-dataset test), shortcut-learning probes, MC-dropout/ensemble
-      uncertainty, and abstention are not yet implemented.
-- [ ] Gate 4 (supervisor-ready): technical report, model card, and results are
-      still placeholders pending a real training run.
+      Grad-CAM — implemented, smoke-tested, and run on a real (if small,
+      240-study) IU X-Ray subsample locally; the full-scale Kaggle GPU run
+      (2,568 studies, 224px, DenseNet-121) is still pending and is what
+      should anchor the final reported numbers.
+- [x] Gate 2 (multimodal value, partial): zero-shot BiomedCLIP retrieval and
+      text-robustness run for real on a 400-study IU X-Ray subsample —
+      results in `results/retrieval_metrics.json` and
+      `results/text_robustness.json`. No fine-tuned fusion baseline yet.
+- [x] Gate 3 (trustworthy evaluation, small-scale): calibration/ECE,
+      cross-dataset shift, shortcut probe, and MC-dropout uncertainty/abstention
+      all run for real (see `reports/technical_report.md` Section 5 and
+      `MODEL_CARD.md`). Headline findings: AUROC survives the pneumonia shift
+      but calibration degrades sharply (ECE 0.094→0.263); a linear probe
+      separates the two datasets' learned features perfectly (AUROC 1.0,
+      real shortcut-learning signal); MC-dropout uncertainty did not
+      outperform random abstention at this scale (honest null result). All
+      of this needs re-running against the full-scale checkpoint once it exists.
+- [ ] Gate 4 (supervisor-ready): technical report and model card are filled in
+      with real small-scale results; still pending the full-scale training
+      run, full-scale re-run of every Gate 3 evaluation, and a final polish pass.

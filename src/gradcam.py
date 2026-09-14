@@ -75,7 +75,8 @@ def main():
     img_size = ckpt["img_size"]
     label_name = ckpt["label_columns"][0]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = build_model(model_name, len(ckpt["label_columns"])).to(device)
+    model = build_model(model_name, len(ckpt["label_columns"]),
+                         dropout_p=ckpt.get("dropout_p", 0.0)).to(device)
     model.load_state_dict(ckpt["model_state"])
     model.eval()
 

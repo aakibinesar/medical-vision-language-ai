@@ -1,0 +1,13 @@
+{
+  "auroc_macro": 0.7492063492063492,
+  "auprc_macro": 0.8100725661283318,
+  "temperature": 2.6935644149780273,
+  "ece_before_calibration": 0.13713750019669535,
+  "ece_after_calibration": 0.09397100452333687,
+  "per_label": {
+    "Abnormal": {
+      "auroc": 0.7492063492063492,
+      "auprc": 0.8100725661283318
+    }
+  }
+}

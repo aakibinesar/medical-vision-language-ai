@@ -53,15 +53,38 @@ retrieval-based evaluation (which doesn't use the derived label at all) but
 does mean the classification numbers should be read as an upper bound, not a
 tight estimate, of image-only vs. multimodal advantage.
 
+## Trustworthy-evaluation results (real data, small-scale)
+
+All results below are from a small, real (non-synthetic) 240/80/80-study
+local IU X-Ray subsample — see `reports/technical_report.md` Section 4 for
+the full-scale-run caveat. Full numbers: `results/shift_metrics.json`,
+`results/shortcut_probe.json`, `results/mc_dropout_summary.json`,
+`results/abstention_metrics.json`.
+
+- **Distribution shift** (evaluated on the real Pneumonia test set, n=624):
+  AUROC held up (0.749 → 0.771) but ECE roughly tripled (0.094 → 0.263) —
+  discrimination survived the shift, calibration didn't.
+- **Shortcut probe**: a linear probe on frozen features separates IU X-Ray
+  from Pneumonia images with AUROC = 1.0 — the representations strongly
+  encode acquisition source (hospital/scanner), a real shortcut-learning
+  flag that tempers how the shift result above should be read.
+- **MC-dropout uncertainty + abstention**: predictive std was nearly
+  identical for correct vs. incorrect predictions, and uncertainty-ordered
+  abstention performed no better than random. Honest null result at this
+  scale — needs re-checking on the full-scale run before concluding
+  anything about whether MC-dropout uncertainty is useful here.
+
 ## Limitations
 
-- Not yet run on real data — all pipeline components have been verified with
-  synthetic smoke-test data only (see `README.md` Status section).
+- All classification/shift/shortcut/uncertainty numbers to date are from
+  the small local CPU subsample described above, not the full 2,568-study
+  training set — the full-scale Kaggle GPU run is still pending and should
+  anchor final reported numbers.
 - IU X-Ray split is by study `uid`, which is effectively patient-level for
   this corpus, but this hasn't been independently verified against a true
   patient identifier.
-- No distribution-shift, shortcut-learning, uncertainty, or abstention
-  evaluation implemented yet (planned for Gate 3 — see README).
 - Chest X-Ray Pneumonia (used only as the cross-dataset shift test) has no
   patient IDs at all — its own split is image-wise, a pre-existing limitation
   disclosed in `DATASET_DATASHEET.md`.
+- No fine-tuned multimodal fusion baseline yet — only zero-shot BiomedCLIP
+  retrieval has been run.

@@ -20,14 +20,25 @@ def set_seed(seed):
     torch.manual_seed(seed)
 
 
-def build_model(name, n_labels):
+def build_model(name, n_labels, dropout_p=0.0):
+    """dropout_p > 0 adds a Dropout before the final linear layer, kept active
+    at inference time for MC-dropout uncertainty estimation (see
+    uncertainty_mc_dropout.py). This changes the state_dict key layout
+    (`fc.1.weight` instead of `fc.weight`), so every script that loads a
+    checkpoint must rebuild the model with the same dropout_p it was trained
+    with — always read dropout_p from the checkpoint, never assume 0.
+    """
     name = name.lower()
     if name == "densenet121":
         model = models.densenet121(weights=models.DenseNet121_Weights.DEFAULT)
-        model.classifier = nn.Linear(model.classifier.in_features, n_labels)
+        in_features = model.classifier.in_features
+        head = nn.Linear(in_features, n_labels)
+        model.classifier = nn.Sequential(nn.Dropout(dropout_p), head) if dropout_p > 0 else head
     elif name == "resnet18":
         model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-        model.fc = nn.Linear(model.fc.in_features, n_labels)
+        in_features = model.fc.in_features
+        head = nn.Linear(in_features, n_labels)
+        model.fc = nn.Sequential(nn.Dropout(dropout_p), head) if dropout_p > 0 else head
     else:
         raise ValueError(f"Unknown model: {name}")
     return model
@@ -61,6 +72,9 @@ def main():
     ap.add_argument("--label-columns", nargs="+", default=None,
                      help="Restrict to these CSV columns as labels (e.g. to ignore a report_text "
                           "column). Defaults to every non-path column.")
+    ap.add_argument("--dropout-p", type=float, default=0.0,
+                     help="Dropout before the final layer, kept active at inference for "
+                          "MC-dropout uncertainty (see uncertainty_mc_dropout.py). 0 = off (default).")
     args = ap.parse_args()
     set_seed(args.seed)
 
@@ -76,7 +90,7 @@ def main():
                          num_workers=args.num_workers)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = build_model(args.model, n_labels).to(device)
+    model = build_model(args.model, n_labels, dropout_p=args.dropout_p).to(device)
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
@@ -119,6 +133,7 @@ def main():
                 "model_name": args.model,
                 "label_columns": train_ds.label_columns,
                 "img_size": args.img_size,
+                "dropout_p": args.dropout_p,
             }, outdir / "best.pt")
 
     with open(outdir / "history.json", "w") as f:

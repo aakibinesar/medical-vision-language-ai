@@ -113,8 +113,42 @@ only for any public figures — IU X-Ray is CC BY-NC-ND, see `MODEL_CARD.md`).
 
 ## 7. Multimodal / foundation-model extension
 
-(TODO: fine-tuned/contrastive fusion baseline, once the zero-shot numbers
-establish a baseline worth beating.)
+**Fusion baseline** (`results/fusion_baseline.json`, `fusion_baseline.py`):
+frozen BiomedCLIP image and text embeddings, logistic-regression probes,
+same 240/80/80 real IU X-Ray split as Section 4, so this is directly
+comparable to the CNN baseline.
+
+| Feature set | Test AUROC | Test AUPRC | ECE (calibrated) |
+|---|---|---|---|
+| Image-only (BiomedCLIP embedding + probe) | 0.653 | 0.731 | 0.075 |
+| Text-only (BiomedCLIP embedding + probe) | 0.937 | 0.946 | 0.120 |
+| Fusion (image+text) | 0.940 | 0.950 | 0.100 |
+
+**Gate 2's literal bar — "fusion beats the best unimodal baseline" — is
+technically met (0.940 vs. 0.937), but the margin is 0.003 AUROC on an
+80-example test set: not distinguishable from noise, and should not be
+reported as "fusion works."**
+
+The finding that actually matters here is text-only (0.937) dramatically
+outperforming image-only (0.653). This is **not** strong evidence that
+report text carries far more diagnostic signal than the image — it's the
+label-leakage risk flagged in `MODEL_CARD.md` showing up empirically: the
+`Abnormal` label is derived from the same report's Problems/MeSH field, so
+a text classifier is partly reading its own label back out of correlated
+text, not doing independent clinical reasoning. The image-only probe
+(0.653) also underperforms the separately fine-tuned end-to-end ResNet-18
+CNN baseline (0.749, Section 4) — expected, since BiomedCLIP's image tower
+here is frozen and generic, not fine-tuned on this task, unlike the CNN.
+
+**Honest reading:** this baseline doesn't yet demonstrate that multimodal
+fusion adds real value beyond what a leaky text-derived label already gives
+away. A more defensible fusion test would need either (a) a label that
+isn't derived from the same text being fed to the model, or (b) evaluating
+on the retrieval task instead of classification, where no such leakage path
+exists (see Section 4's zero-shot retrieval numbers, which don't have this
+confound). Both are queued as future work rather than re-run now, per the
+"one dataset, controlled scope" sequencing this project has followed
+throughout.
 
 ## 8. Error analysis
 
@@ -140,5 +174,7 @@ establish a baseline worth beating.)
   perfect dataset separability (image statistics/preprocessing artifacts vs.
   something more concerning)? Would inform whether domain-adaptation or
   harmonization preprocessing is worth adding.
-- Fine-tuned/contrastive multimodal fusion baseline (Gate 2 completion).
+- Re-test multimodal fusion with a label that isn't text-derived (removes
+  the leakage confound found in Section 7), or lean on the retrieval task
+  instead of classification, where the confound doesn't apply.
 - MIMIC-CXR upgrade, pending PhysioNet credentialing.

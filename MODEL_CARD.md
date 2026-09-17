@@ -14,11 +14,13 @@ cross-dataset distribution-shift check.
 
 **Multimodal baseline.** [BiomedCLIP](https://huggingface.co/microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224)
 (PubMedBERT text tower + ViT-B/16 image tower, pretrained on PubMed Central
-image-text pairs), used zero-shot for image<->report retrieval, and frozen
-(no fine-tuning) as feature extractors for a logistic-regression fusion
-classifier (`fusion_baseline.py`) — image-only vs. text-only vs. fusion
-probes trained on identical splits, to directly test whether fusion adds
-value beyond the best single modality.
+image-text pairs), used three ways: zero-shot for image<->report retrieval;
+frozen as feature extractors for a logistic-regression fusion classifier
+(`fusion_baseline.py`, confounded by label leakage — see below); and frozen
+with small trained linear projection heads on top, via a contrastive loss
+on the real image-report pairs (`contrastive_projection.py`) — the
+project's one genuinely unconfounded fusion test, since it never touches
+the derived classification label.
 
 ## Metrics
 
@@ -91,12 +93,20 @@ verdict (nominal small-scale "win" → full-scale loss). Full numbers:
   roughly halves risk vs. random-order abstention (0.170 vs 0.323
   area-under-risk-coverage). The small-scale null result was an artifact of
   too little training data, not a real property of the method.
-- **Fusion baseline** (image-only 0.752 vs. text-only 0.957 vs. fusion
-  0.955 AUROC): fusion does **not** beat text-only at full scale — this
-  reverses the small-scale pass's nominal (and, in retrospect, noise-level)
-  "win." The Gate 2 bar ("fusion adds measurable value beyond the best
-  unimodal baseline") is not met on this classification setup. See
-  `reports/technical_report.md` Section 7 for the full discussion.
+- **Fusion baseline (classification, confounded)** (image-only 0.752 vs.
+  text-only 0.957 vs. fusion 0.955 AUROC): fusion does **not** beat
+  text-only at full scale — this reverses the small-scale pass's nominal
+  (and, in retrospect, noise-level) "win." The Gate 2 bar is not met on
+  this classification setup. See `reports/technical_report.md` Section 7.
+- **Contrastive projection (retrieval, unconfounded) — the real fusion
+  win**: training small linear projection heads with a contrastive loss on
+  the real image-report training pairs (never touching the derived label)
+  roughly **doubles Recall@5 and Recall@10** over zero-shot BiomedCLIP in
+  both directions (e.g. image→text Recall@5 3.64%→7.83%), with real gains
+  at Recall@1 too. Validated by a healthy training curve (best checkpoint
+  at epoch 28/200, well before the loss-minimizing late epochs) rather than
+  a small-sample fluke — this is the project's cleanest piece of positive
+  multimodal evidence. `results/contrastive_projection.json`.
 - **Grad-CAM**: one overlay's hottest region centers on an "L" laterality
   marker rather than lung tissue — a concrete, visible instance of the kind
   of shortcut the probe above found abstractly. Not a systematic finding by
@@ -110,11 +120,16 @@ verdict (nominal small-scale "win" → full-scale loss). Full numbers:
 - Chest X-Ray Pneumonia (used only as the cross-dataset shift test) has no
   patient IDs at all — its own split is image-wise, a pre-existing limitation
   disclosed in `DATASET_DATASHEET.md`.
-- The fusion baseline's classification comparison is confounded by
-  text-label leakage (see above) — it does not cleanly answer "does fusion
-  help," only "does fusion beat a leaky text baseline" (no, at full scale).
-  A clean fusion test needs either a non-text-derived label or evaluation
-  on the retrieval task instead, where no such leakage path exists.
+- The classification fusion baseline is confounded by text-label leakage
+  (see above) — it does not cleanly answer "does fusion help," only "does
+  fusion beat a leaky text baseline" (no, at full scale). The retrieval-
+  based contrastive projection test above is the clean answer instead, and
+  it's positive.
+- The contrastive projection only trains small linear heads on top of a
+  fully frozen backbone — it doesn't establish how much further gains
+  might come from fine-tuning more of the network (a small MLP head, or
+  unfreezing late backbone layers), just that even this minimal amount of
+  training on real pairs already helps.
 - The shortcut probe shows the representations encode acquisition source
   almost perfectly; this doesn't by itself prove the classifier's
   predictions depend on it, only that the information is present and usable.

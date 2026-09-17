@@ -126,9 +126,22 @@ verdict (nominal small-scale "win" → full-scale loss). Full numbers:
   confirmed robust — e.g. image→text Recall@5 7.41% ± 0.42% (trained) vs.
   3.64% (zero-shot, deterministic); the zero-shot baseline sits well
   outside the trained mean's range on every metric.
-- Every other evaluation here (shift, shortcut probe, MC-dropout/
-  abstention, error analysis, classification fusion) is still a single run
-  against the seed-42 checkpoint, not extended to repeated seeds.
+- **All four Gate 3 diagnostics (`results/gate3_seed_ci.json`) — every
+  finding held up, nothing needed correcting this time**: shift AUROC
+  0.864±0.036 (always above each seed's own in-distribution AUROC), shift
+  ECE 0.117±0.026 (always well above in-distribution); shortcut probe AUROC
+  0.9998±0.0001 (essentially seed-invariant — a property of the data, not
+  one trained model); MC-dropout std 0.037±0.008 (correct) vs.
+  0.050±0.004 (incorrect), no overlap across seeds; abstention AUC-risk
+  0.175±0.014 (uncertainty-ordered) vs. 0.293±0.033 (random-ordered),
+  again no overlap. Required training 2 more MC-dropout checkpoints
+  (seeds 43/44) since only seed 42's existed; shift/shortcut reused the
+  3 already-trained main checkpoints with no new training needed.
+- The classification fusion baseline (already flagged as unreliable due to
+  label leakage) and the full-scale error-analysis keyword check (already
+  flagged as a blunt instrument) are still single-run against the seed-42
+  checkpoint — not extended to repeated seeds, since a tighter variance
+  estimate wouldn't change either conclusion.
 
 ## Limitations
 

@@ -196,6 +196,34 @@ signal to sharpen, not a real property of the method. At full scale,
 uncertainty-aware abstention is a genuinely useful triage signal on this
 task.
 
+**Repeated-seed confirmation for all four diagnostics above**
+(`results/gate3_seed_ci.json`, seeds 42/43/44, using the 3 already-trained
+main checkpoints for shift/shortcut and 3 dropout-enabled checkpoints —
+seed 42's existing plus 2 newly trained — for MC-dropout/abstention).
+Unlike the Gate 1 classification result, **nothing here needed correcting
+— every qualitative finding held up cleanly across seeds**:
+
+| Metric | Mean ± std (n=3) |
+|---|---|
+| Shift AUROC | 0.864 ± 0.036 (all seeds above their own in-distribution AUROC) |
+| Shift ECE | 0.117 ± 0.026 (all seeds well above their own in-distribution ECE) |
+| Shortcut probe AUROC | 0.9998 ± 0.0001 (essentially seed-invariant) |
+| MC-dropout std, correct predictions | 0.037 ± 0.008 |
+| MC-dropout std, incorrect predictions | 0.050 ± 0.004 (higher than correct, every seed) |
+| Abstention AUC-risk, uncertainty-ordered | 0.175 ± 0.014 |
+| Abstention AUC-risk, random-ordered | 0.293 ± 0.033 (worse than uncertainty-ordered, every seed) |
+
+The shortcut probe is essentially seed-invariant (std of 0.0001 on an
+AUROC of ~1.0) — this is a property of the *data*, not an artifact of one
+particular trained model. MC-dropout's correct-vs-incorrect std gap and
+abstention's uncertainty-vs-random gap both hold in the same direction for
+all three seeds, with no overlap between the two conditions' ranges in
+either case — a real, repeatable effect, not a coincidence of seed 42.
+Contrast this with the Gate 1 classification CI (Section 4), where the
+repeated-seed check *did* overturn the originally-reported number: not
+every metric in this project turned out to be seed-fragile, only
+calibration did.
+
 ## 6. Explainability
 
 Grad-CAM overlays in `results/gradcam_examples/`, full-scale checkpoint, 6
@@ -387,19 +415,20 @@ than either the most-confident extremes or fully automated keyword counts.
   a fully frozen backbone — it doesn't establish how much further gains
   might come from fine-tuning more of the network, just that even this
   minimal training already helps.
-- Repeated-seed confidence intervals now exist for both the Gate 1
-  classification headline numbers (Section 4, n=3 seeds) and the
-  contrastive projection fusion result (Section 7, n=3 seeds). n=3 is
-  enough to catch the calibration instability in Section 4 but is still a
-  small-N estimate of variance — a std from 3 samples is itself noisy;
-  don't over-interpret the exact std values, only the qualitative pattern
-  (AUROC/AUPRC stable, ECE not).
-- Every other evaluation in this report (shift, shortcut probe, MC-dropout/
-  abstention, error analysis, fusion classification) is still a single run
-  against the seed-42 checkpoint — repeated-seed CI wasn't extended to
-  those, since re-running the full Gate 3 + error-analysis suite per seed
-  would be a large compute/scope increase for evaluations that are already
-  diagnostic rather than headline numbers.
+- Repeated-seed confidence intervals (n=3 seeds each) now exist for the
+  Gate 1 classification headline numbers (Section 4), the contrastive
+  projection fusion result (Section 7), and all four Gate 3 diagnostics —
+  shift, shortcut probe, MC-dropout, and abstention (Section 5). n=3 is
+  enough to catch the calibration instability in Section 4 and to confirm
+  the Section 5 findings are seed-robust, but it's still a small-N estimate
+  of variance — a std from 3 samples is itself noisy; don't over-interpret
+  the exact std values, only the qualitative patterns.
+- The classification fusion baseline (confounded by label leakage) and the
+  full-scale error-analysis keyword check are still single-run against the
+  seed-42 checkpoint only — not extended to repeated seeds, since both are
+  already flagged as unreliable/blunt-instrument results on other grounds
+  (Sections 7 and 8) where a tighter variance estimate wouldn't change the
+  conclusion.
 
 ## 10. Future work
 
@@ -418,10 +447,10 @@ than either the most-confident extremes or fully automated keyword counts.
 - A systematic (not keyword-based) read of a larger random error sample,
   to properly characterize the FN/FP patterns hinted at in Section 8.
 - ~~Repeated-seed runs for confidence intervals on the headline numbers~~ —
-  done for Gate 1 classification and Gate 2 fusion (n=3 each). Natural
-  extension: n=5+ for a less noisy std estimate, and/or extending seed
-  repeats to the Gate 3 evaluations (shift, shortcut, MC-dropout) that are
-  currently single-run against the seed-42 checkpoint only.
+  done for Gate 1 classification, Gate 2 fusion, and all four Gate 3
+  diagnostics (n=3 each). Natural extension: n=5+ for a less noisy std
+  estimate, particularly for Section 4's calibration number where n=3
+  already showed real variance worth pinning down more precisely.
 - MIMIC-CXR upgrade, pending PhysioNet credentialing.
 - Grand Challenge participation (REG2027/CXR-LT 2027 preferred; BEETLE
   parked on an unresolved storage question; AMIA/VinBigData detection

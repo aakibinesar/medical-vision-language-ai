@@ -8,7 +8,7 @@ notebook code to drift out of sync, which is what happened to an earlier
 pneumonia-only notebook this repo used to ship — retired once the primary
 dataset moved to IU X-Ray).
 
-All three kernels below share the same `src/*.py` dataset
+All four kernels below share the same `src/*.py` dataset
 (`trustmed-vlm-src`) — update it once (`kaggle datasets version`), re-run
 whichever kernel(s) you need.
 
@@ -45,14 +45,31 @@ caught a real finding: ECE varies far more across seeds (0.040-0.130) than
 AUROC does (0.772-0.792) — the originally-reported single-seed ECE was the
 best of three, not typical (see `reports/technical_report.md` Section 4).
 
-## How it works (any of the three kernels)
+## `gate3-seeds/` — confidence interval for the Gate 3 diagnostics
+
+Extends repeated-seed CI to shift, shortcut probe, MC-dropout, and
+abstention (previously single-run against the seed-42 checkpoint only).
+Reuses the 3 already-trained main checkpoints (seeds 42/43/44) for
+shift_eval/shortcut_probe — no retraining — but trains 2 more
+dropout-enabled checkpoints (seeds 43/44; only seed 42's existed) for
+MC-dropout/abstention. Needs a fourth dataset source,
+`trustmed-vlm-checkpoints` (the 3 main + 1 dropout `.pt` files from
+`full-run/` and `seed-repeats/`, uploaded once as their own small private
+Kaggle dataset so this kernel doesn't need to retrain checkpoints that
+already exist). Aggregate the per-seed results afterward with
+`aggregate_gate3_seed_metrics.py`. Result: every Gate 3 finding held up
+across seeds with nothing to correct — see
+`reports/technical_report.md` Section 5.
+
+## How it works (any of the four kernels)
 
 1. `src/*.py` is pushed as a private Kaggle dataset (`kaggle datasets create`,
    or `kaggle datasets version` to update an existing one) so the kernel
    runs the actual tested scripts via subprocess, not a copy.
 2. `kernel_run.py` is pushed as a GPU kernel (`kaggle kernels push -p .` from
-   inside `full-run/`, `fusion-retrieval/`, or `seed-repeats/`) with that
-   folder's `kernel-metadata.json` declaring its dataset sources.
+   inside `full-run/`, `fusion-retrieval/`, `seed-repeats/`, or
+   `gate3-seeds/`) with that folder's `kernel-metadata.json` declaring its
+   dataset sources.
 3. Status/output is polled and fetched via the API (`kaggle kernels status` /
    `kernels output`) once complete.
 

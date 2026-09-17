@@ -47,7 +47,8 @@ medical-vision-language-ai-portfolio/
 │   ├── shortcut_probe.py            # dataset-of-origin linear probe (shortcut-learning check)
 │   ├── uncertainty_mc_dropout.py, abstention_eval.py  # MC-dropout uncertainty + risk-coverage
 │   ├── error_analysis.py            # per-example predictions + FP/FN report-text inspection
-│   └── aggregate_seed_metrics.py    # mean/std across repeated-seed training runs
+│   ├── aggregate_seed_metrics.py    # mean/std across repeated-seed training runs (Gate 1)
+│   └── aggregate_gate3_seed_metrics.py  # mean/std across repeated-seed Gate 3 diagnostics
 ├── kaggle/                     # the actual scripts that ran the full-scale GPU job (see kaggle/README.md)
 ├── data/                       # not committed; see data/README.md
 ├── results/                    # metrics, plots, Grad-CAM examples (generated)
@@ -167,7 +168,13 @@ was noise).
       7,016 combined real images — confirms the small-scale perfect score
       wasn't a fluke); MC-dropout uncertainty **reverses** the small-scale
       null result — at full scale it's clearly informative (uncertainty-
-      ordered abstention roughly halves risk vs. random). See
+      ordered abstention roughly halves risk vs. random).
+      **Repeated-seed check (n=3, `results/gate3_seed_ci.json`): every one
+      of these findings held up cleanly** — no corrections needed here,
+      unlike Gate 1's calibration number. Shortcut probe AUROC is
+      essentially seed-invariant (0.9998±0.0001); MC-dropout's correct-vs-
+      incorrect std gap and abstention's uncertainty-vs-random gap both
+      hold with no overlap across all three seeds. See
       `reports/technical_report.md` Section 5 and `MODEL_CARD.md`.
 - [x] **Error analysis**: full 549-study test set, with a systematic
       keyword check (not just eyeballing the most-confident cases) across
@@ -176,17 +183,15 @@ was noise).
       real-but-overstated: both patterns are still visible but explain a
       minority of cases at full scale. Reported as a methodological lesson,
       not quietly dropped — see `reports/technical_report.md` Section 8.
-- [x] **Gate 4** (supervisor-ready): technical report and model card hold
-      real full-scale results throughout, the genuine fusion test, and
-      repeated-seed confidence intervals (n=3) for both headline results —
-      which caught a real issue (calibration is far less seed-stable than
+- [x] **Gate 4** (supervisor-ready) — **complete**: technical report and
+      model card hold real full-scale results throughout, the genuine
+      fusion test, and repeated-seed confidence intervals (n=3) for every
+      headline number and all four Gate 3 diagnostics. The classification
+      CI caught a real issue (calibration is far less seed-stable than
       discrimination; the reported ECE was a best-case draw, now corrected
-      to 0.080±0.045, and a first draft of that correction incorrectly
-      claimed a clean discrimination-vs-calibration trade-off across seeds
-      that the raw numbers don't actually support — also corrected). Final
-      polish pass done: wrote the previously-unfilled Motivation section,
-      added a "Key findings at a glance" summary to the technical report,
-      fixed stale cross-references, added `.gitattributes` and `LICENSE`
-      (MIT, code only — not the datasets), removed an unused dependency.
-      Optionally still open: extending seed repeats to the Gate 3
-      diagnostics, which remain single-run.
+      to 0.080±0.045); the Gate 3 CI, by contrast, confirmed every finding
+      held up with nothing to correct. Final polish pass done: wrote the
+      previously-unfilled Motivation section, added a "Key findings at a
+      glance" summary to the technical report, fixed stale
+      cross-references, added `.gitattributes` and `LICENSE` (MIT, code
+      only — not the datasets), removed an unused dependency.

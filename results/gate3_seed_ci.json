@@ -1,0 +1,162 @@
+{
+  "n_seeds": 3,
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "per_seed": [
+    {
+      "seed": 42,
+      "shift_auroc": 0.8325772518080211,
+      "shift_auprc": 0.8794148539534992,
+      "shift_ece": 0.13096182019664693,
+      "shift_mean_pred_prob": 0.7253446578979492,
+      "shortcut_probe_auroc": 0.9997315044506057,
+      "shortcut_probe_accuracy": 0.997624703087886,
+      "mc_dropout_correct_std": 0.028292981907725334,
+      "mc_dropout_incorrect_std": 0.04666405916213989,
+      "abstention_full_coverage_accuracy": 0.6593806921675774,
+      "abstention_auc_risk_uncertainty_ordered": 0.1666502931402449,
+      "abstention_auc_risk_random_ordered": 0.32980974974773225
+    },
+    {
+      "seed": 43,
+      "shift_auroc": 0.8551391628314705,
+      "shift_auprc": 0.8936661263986675,
+      "shift_ece": 0.08766405240226634,
+      "shift_mean_pred_prob": 0.7108818292617798,
+      "shortcut_probe_auroc": 0.9998550513157255,
+      "shortcut_probe_accuracy": 0.9942992874109263,
+      "mc_dropout_correct_std": 0.04309691861271858,
+      "mc_dropout_incorrect_std": 0.05453014373779297,
+      "abstention_full_coverage_accuracy": 0.7213114754098361,
+      "abstention_auc_risk_uncertainty_ordered": 0.16711403204036834,
+      "abstention_auc_risk_random_ordered": 0.27948447941762633
+    },
+    {
+      "seed": 44,
+      "shift_auroc": 0.9038461538461539,
+      "shift_auprc": 0.9374341868632954,
+      "shift_ece": 0.13286218133110264,
+      "shift_mean_pred_prob": 0.6631169319152832,
+      "shortcut_probe_auroc": 0.9999620604114986,
+      "shortcut_probe_accuracy": 0.9957244655581948,
+      "mc_dropout_correct_std": 0.040589671581983566,
+      "mc_dropout_incorrect_std": 0.04984147846698761,
+      "abstention_full_coverage_accuracy": 0.7067395264116576,
+      "abstention_auc_risk_uncertainty_ordered": 0.19148267085484616,
+      "abstention_auc_risk_random_ordered": 0.26892088575348166
+    }
+  ],
+  "shift_auroc": {
+    "mean": 0.8638541894952152,
+    "std": 0.03642496213783311,
+    "n": 3,
+    "values": [
+      0.8325772518080211,
+      0.8551391628314705,
+      0.9038461538461539
+    ]
+  },
+  "shift_auprc": {
+    "mean": 0.9035050557384874,
+    "std": 0.030235147523038755,
+    "n": 3,
+    "values": [
+      0.8794148539534992,
+      0.8936661263986675,
+      0.9374341868632954
+    ]
+  },
+  "shift_ece": {
+    "mean": 0.11716268464333864,
+    "std": 0.02556422932890526,
+    "n": 3,
+    "values": [
+      0.13096182019664693,
+      0.08766405240226634,
+      0.13286218133110264
+    ]
+  },
+  "shift_mean_pred_prob": {
+    "mean": 0.6997811396916708,
+    "std": 0.032565187730802164,
+    "n": 3,
+    "values": [
+      0.7253446578979492,
+      0.7108818292617798,
+      0.6631169319152832
+    ]
+  },
+  "shortcut_probe_auroc": {
+    "mean": 0.9998495387259433,
+    "std": 0.00011537679255551105,
+    "n": 3,
+    "values": [
+      0.9997315044506057,
+      0.9998550513157255,
+      0.9999620604114986
+    ]
+  },
+  "shortcut_probe_accuracy": {
+    "mean": 0.9958828186856691,
+    "std": 0.0016683537217502488,
+    "n": 3,
+    "values": [
+      0.997624703087886,
+      0.9942992874109263,
+      0.9957244655581948
+    ]
+  },
+  "mc_dropout_correct_std": {
+    "mean": 0.037326524034142494,
+    "std": 0.007923082381914092,
+    "n": 3,
+    "values": [
+      0.028292981907725334,
+      0.04309691861271858,
+      0.040589671581983566
+    ]
+  },
+  "mc_dropout_incorrect_std": {
+    "mean": 0.050345227122306824,
+    "std": 0.003957163588813804,
+    "n": 3,
+    "values": [
+      0.04666405916213989,
+      0.05453014373779297,
+      0.04984147846698761
+    ]
+  },
+  "abstention_full_coverage_accuracy": {
+    "mean": 0.6958105646630237,
+    "std": 0.03237957893375442,
+    "n": 3,
+    "values": [
+      0.6593806921675774,
+      0.7213114754098361,
+      0.7067395264116576
+    ]
+  },
+  "abstention_auc_risk_uncertainty_ordered": {
+    "mean": 0.1750823320118198,
+    "std": 0.014205002607054715,
+    "n": 3,
+    "values": [
+      0.1666502931402449,
+      0.16711403204036834,
+      0.19148267085484616
+    ]
+  },
+  "abstention_auc_risk_random_ordered": {
+    "mean": 0.2927383716396134,
+    "std": 0.03253632867890328,
+    "n": 3,
+    "values": [
+      0.32980974974773225,
+      0.27948447941762633,
+      0.26892088575348166
+    ]
+  }
+}

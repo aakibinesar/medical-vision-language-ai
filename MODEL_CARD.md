@@ -112,6 +112,22 @@ verdict (nominal small-scale "win" → full-scale loss). Full numbers:
   of shortcut the probe above found abstractly. Not a systematic finding by
   itself (one image), but a good, precise follow-up target.
 
+## Repeated-seed confidence intervals (n=3: seeds 42/43/44)
+
+- **Classification (`results/metrics_seed_ci.json`)**: AUROC 0.784 ± 0.010
+  and AUPRC 0.864 ± 0.004 are tight and reliable. **ECE after calibration
+  is 0.080 ± 0.045 — the originally-reported 0.040 was the best of three
+  seeds, not typical**, and the seed with the best AUROC (0.788) had the
+  worst calibration (0.130) of the three. Report 0.080 ± 0.045 as the
+  honest calibration number going forward, not 0.040.
+- **Contrastive projection fusion (`results/contrastive_projection.json`)**:
+  confirmed robust — e.g. image→text Recall@5 7.41% ± 0.42% (trained) vs.
+  3.64% (zero-shot, deterministic); the zero-shot baseline sits well
+  outside the trained mean's range on every metric.
+- Every other evaluation here (shift, shortcut probe, MC-dropout/
+  abstention, error analysis, classification fusion) is still a single run
+  against the seed-42 checkpoint, not extended to repeated seeds.
+
 ## Limitations
 
 - IU X-Ray split is by study `uid`, which is effectively patient-level for
@@ -133,4 +149,5 @@ verdict (nominal small-scale "win" → full-scale loss). Full numbers:
 - The shortcut probe shows the representations encode acquisition source
   almost perfectly; this doesn't by itself prove the classifier's
   predictions depend on it, only that the information is present and usable.
-- Single run per configuration — no repeated-seed confidence intervals.
+- Repeated-seed CI exists for the two headline results (n=3 each) but not
+  for the diagnostic Gate 3 evaluations, which remain single-run.

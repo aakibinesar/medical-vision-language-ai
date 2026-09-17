@@ -49,7 +49,7 @@ comparison, since several of them changed meaningfully at scale — that
 delta is itself informative about which small-scale findings were real
 signal versus small-sample noise.
 
-| Metric | Full-scale (headline) | Small-scale (pipeline check) |
+| Metric | Full-scale (seed 42, headline) | Small-scale (pipeline check) |
 |---|---|---|
 | Test AUROC | **0.792** | 0.749 |
 | Test AUPRC | **0.865** | 0.810 |
@@ -59,6 +59,28 @@ signal versus small-sample noise.
 More training data improved both discrimination and calibration, as
 expected — and did so by more than a small tweak: ECE after calibration
 roughly halved. Full history in `outputs_full/history.json`.
+
+**Repeated-seed confidence interval** (`results/metrics_seed_ci.json`,
+seeds 42/43/44, identical hyperparameters, only the random seed differs):
+
+| Metric | Mean ± std (n=3) | Per-seed values (42 / 43 / 44) |
+|---|---|---|
+| Test AUROC | 0.784 ± 0.010 | 0.792 / 0.772 / 0.788 |
+| Test AUPRC | 0.864 ± 0.004 | 0.865 / 0.860 / 0.868 |
+| ECE after calibration | 0.080 ± 0.045 | 0.040 / 0.071 / 0.130 |
+
+**Important, humbling finding: the originally-reported ECE (0.040) was the
+*best* of three seeds, not a typical one.** AUROC and AUPRC are tight and
+stable across seeds (std around 1% relative) — genuinely reliable numbers.
+Calibration is not: ECE after calibration ranges more than 3x across seeds
+(0.040 to 0.130), and the seed with the *best* discrimination (44, AUROC
+0.788) has the *worst* calibration (ECE 0.130) of the three. This is the
+same qualitative lesson as Section 5's shift result and the shortcut probe
+— discrimination and calibration are genuinely different kinds of
+reliability, and this time the evidence is that calibration is also more
+seed-sensitive, not just more shift-sensitive. The honest headline number
+for calibration going forward is 0.080 ± 0.045, not 0.040 — reporting the
+single best-seed value alone would have been quietly misleading.
 
 **Zero-shot BiomedCLIP retrieval** (full real 549-study IU X-Ray test set):
 image→text Recall@1/5/10 = 1.28% / 3.64% / 5.65% (chance with 549
@@ -322,12 +344,19 @@ than either the most-confident extremes or fully automated keyword counts.
   a fully frozen backbone — it doesn't establish how much further gains
   might come from fine-tuning more of the network, just that even this
   minimal training already helps.
-- Repeated-seed confidence intervals now exist for the contrastive
-  projection fusion result (Section 7, n=3 seeds) but not yet for the
-  Gate 1 classification headline numbers (Section 4) — those are still a
-  single training run. Given the CNN training's own cost (~27 min/run on
-  Kaggle GPU), extending seed repeats there is the one remaining piece of
-  the "point estimate, not confidence interval" gap.
+- Repeated-seed confidence intervals now exist for both the Gate 1
+  classification headline numbers (Section 4, n=3 seeds) and the
+  contrastive projection fusion result (Section 7, n=3 seeds). n=3 is
+  enough to catch the calibration instability in Section 4 but is still a
+  small-N estimate of variance — a std from 3 samples is itself noisy;
+  don't over-interpret the exact std values, only the qualitative pattern
+  (AUROC/AUPRC stable, ECE not).
+- Every other evaluation in this report (shift, shortcut probe, MC-dropout/
+  abstention, error analysis, fusion classification) is still a single run
+  against the seed-42 checkpoint — repeated-seed CI wasn't extended to
+  those, since re-running the full Gate 3 + error-analysis suite per seed
+  would be a large compute/scope increase for evaluations that are already
+  diagnostic rather than headline numbers.
 
 ## 10. Future work
 
@@ -345,7 +374,11 @@ than either the most-confident extremes or fully automated keyword counts.
   layers) now that this establishes a real baseline worth improving on.
 - A systematic (not keyword-based) read of a larger random error sample,
   to properly characterize the FN/FP patterns hinted at in Section 8.
-- Repeated-seed runs for confidence intervals on the headline numbers.
+- ~~Repeated-seed runs for confidence intervals on the headline numbers~~ —
+  done for Gate 1 classification and Gate 2 fusion (n=3 each). Natural
+  extension: n=5+ for a less noisy std estimate, and/or extending seed
+  repeats to the Gate 3 evaluations (shift, shortcut, MC-dropout) that are
+  currently single-run against the seed-42 checkpoint only.
 - MIMIC-CXR upgrade, pending PhysioNet credentialing.
 - Grand Challenge participation (REG2027/CXR-LT 2027 preferred; BEETLE
   parked on an unresolved storage question; AMIA/VinBigData detection

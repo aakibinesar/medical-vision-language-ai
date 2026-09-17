@@ -1,0 +1,72 @@
+{
+  "n_seeds": 3,
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "per_seed": [
+    {
+      "seed": 42,
+      "auroc_macro": 0.7921015314804312,
+      "auprc_macro": 0.8650137035872036,
+      "ece_before_calibration": 0.0519883640938335,
+      "ece_after_calibration": 0.03991902348176595
+    },
+    {
+      "seed": 43,
+      "auroc_macro": 0.7723908111174136,
+      "auprc_macro": 0.8599900291074576,
+      "ece_before_calibration": 0.06473349281781791,
+      "ece_after_calibration": 0.07114594851795224
+    },
+    {
+      "seed": 44,
+      "auroc_macro": 0.7882019285309133,
+      "auprc_macro": 0.8680475450816908,
+      "ece_before_calibration": 0.1325832848286151,
+      "ece_after_calibration": 0.12953408249740392
+    }
+  ],
+  "auroc_macro": {
+    "mean": 0.784231423709586,
+    "std": 0.010437998165807769,
+    "n": 3,
+    "values": [
+      0.7921015314804312,
+      0.7723908111174136,
+      0.7882019285309133
+    ]
+  },
+  "auprc_macro": {
+    "mean": 0.8643504259254506,
+    "std": 0.004069501672341614,
+    "n": 3,
+    "values": [
+      0.8650137035872036,
+      0.8599900291074576,
+      0.8680475450816908
+    ]
+  },
+  "ece_before_calibration": {
+    "mean": 0.08310171391342216,
+    "std": 0.043323538310301744,
+    "n": 3,
+    "values": [
+      0.0519883640938335,
+      0.06473349281781791,
+      0.1325832848286151
+    ]
+  },
+  "ece_after_calibration": {
+    "mean": 0.08019968483237404,
+    "std": 0.045488375509929777,
+    "n": 3,
+    "values": [
+      0.03991902348176595,
+      0.07114594851795224,
+      0.12953408249740392
+    ]
+  },
+  "note": "std from n<5 seeds is itself a noisy estimate - report as an honest range, not a precise confidence interval."
+}

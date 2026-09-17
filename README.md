@@ -46,7 +46,8 @@ medical-vision-language-ai-portfolio/
 │   ├── shift_eval.py                # cross-dataset distribution-shift test
 │   ├── shortcut_probe.py            # dataset-of-origin linear probe (shortcut-learning check)
 │   ├── uncertainty_mc_dropout.py, abstention_eval.py  # MC-dropout uncertainty + risk-coverage
-│   └── error_analysis.py            # per-example predictions + FP/FN report-text inspection
+│   ├── error_analysis.py            # per-example predictions + FP/FN report-text inspection
+│   └── aggregate_seed_metrics.py    # mean/std across repeated-seed training runs
 ├── kaggle/                     # the actual scripts that ran the full-scale GPU job (see kaggle/README.md)
 ├── data/                       # not committed; see data/README.md
 ├── results/                    # metrics, plots, Grad-CAM examples (generated)
@@ -129,8 +130,14 @@ was noise).
       downloaded data — IU X-Ray (3,666 studies split by `uid`) and
       Pneumonia. See `DATASET_DATASHEET.md`.
 - [x] **Gate 1** (unimodal baseline): full-scale DenseNet-121 — test AUROC
-      0.792, AUPRC 0.865, ECE 0.052→0.040 after calibration. All improved
-      over the small-scale pipeline-check numbers (0.749/0.810/0.094).
+      0.792, AUPRC 0.865, ECE 0.052→0.040 after calibration (seed 42). All
+      improved over the small-scale pipeline-check numbers (0.749/0.810/0.094).
+      **Repeated-seed check (n=3):** AUROC 0.784±0.010 and AUPRC 0.864±0.004
+      are tight and reliable; **ECE after calibration is actually 0.080±0.045
+      — the reported 0.040 was the best of three seeds, not typical**, and
+      the best-AUROC seed had the worst calibration. See
+      `results/metrics_seed_ci.json` and `reports/technical_report.md`
+      Section 4.
 - [x] **Gate 2** (multimodal value) — **met, via the unconfounded test**:
       zero-shot BiomedCLIP retrieval (full 549-study test set, several
       times chance level), text-robustness (collapses toward chance under
@@ -142,8 +149,11 @@ was noise).
       derived label) **roughly double Recall@5/@10** over zero-shot
       BiomedCLIP in both directions, with real Recall@1 gains too — a
       healthy training curve (best checkpoint at epoch 28/200) rules out
-      overfitting. This is the project's cleanest positive multimodal
-      result and the one that actually satisfies the Gate 2 bar. See
+      overfitting, and a **repeated-seed check (n=3) confirms it's real**:
+      std is small (0.4-1.1pp) relative to the ~2x effect, and zero-shot
+      sits outside the trained mean's range on every metric. This is the
+      project's cleanest positive multimodal result and the one that
+      actually satisfies the Gate 2 bar. See
       `reports/technical_report.md` Section 7.
 - [x] **Gate 3** (trustworthy evaluation): calibration/ECE, cross-dataset
       shift, shortcut probe, and MC-dropout uncertainty/abstention all run
@@ -162,8 +172,11 @@ was noise).
       real-but-overstated: both patterns are still visible but explain a
       minority of cases at full scale. Reported as a methodological lesson,
       not quietly dropped — see `reports/technical_report.md` Section 8.
-- [x] **Gate 4** (supervisor-ready): technical report and model card now
-      hold real full-scale results throughout, including where full-scale
-      numbers reversed or confirmed small-scale ones, and the genuine
-      fusion test above. Remaining before this is fully "done":
-      repeated-seed confidence intervals and a final read-through polish.
+- [x] **Gate 4** (supervisor-ready): technical report and model card hold
+      real full-scale results throughout, the genuine fusion test, and
+      repeated-seed confidence intervals (n=3) for both headline results —
+      which caught a real issue (calibration is far less seed-stable than
+      discrimination; the reported ECE was a best-case draw, now corrected
+      to 0.080±0.045). Remaining: a final read-through polish, and
+      optionally extending seed repeats to the Gate 3 diagnostics, which
+      are still single-run.

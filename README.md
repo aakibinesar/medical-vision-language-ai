@@ -40,7 +40,8 @@ medical-vision-language-ai-portfolio/
 │   ├── eval.py                      # AUROC/AUPRC, confusion matrix, ROC, calibration/ECE
 │   ├── gradcam.py                   # Grad-CAM overlays on test images
 │   ├── retrieval_baseline.py        # zero-shot BiomedCLIP image<->report retrieval
-│   ├── fusion_baseline.py           # image-only vs text-only vs fusion classification probes
+│   ├── fusion_baseline.py           # image-only vs text-only vs fusion classification probes (confounded)
+│   ├── contrastive_projection.py    # genuine fusion test: contrastive retrieval fine-tuning (unconfounded)
 │   ├── text_robustness.py           # missing/noisy/mismatched-text robustness test
 │   ├── shift_eval.py                # cross-dataset distribution-shift test
 │   ├── shortcut_probe.py            # dataset-of-origin linear probe (shortcut-learning check)
@@ -95,15 +96,17 @@ real BiomedCLIP load and inference (not mocked).
 ## Quickstart — real full-scale training (Kaggle API)
 
 This is what actually produced everything in `results/` and the technical
-report. See `kaggle/README.md` for the full walkthrough and gotchas; short
-version:
+report. Two kernels — `kaggle/full-run/` (training + Gate 3 + error
+analysis) and `kaggle/fusion-retrieval/` (the genuine fusion test). See
+`kaggle/README.md` for the full walkthrough and gotchas; short version:
 
 ```bash
-# 1. Push src/ as a private Kaggle dataset
+# 1. Push src/ as a private Kaggle dataset (shared by both kernels)
 cd src && kaggle datasets create -p .   # (needs a dataset-metadata.json; see kaggle/README.md)
 
-# 2. Push and run the full pipeline as a GPU kernel
-cd ../kaggle && kaggle kernels push -p .
+# 2. Push and run either pipeline as a GPU kernel
+cd ../kaggle/full-run && kaggle kernels push -p .            # training + Gate 3 + error analysis
+cd ../fusion-retrieval && kaggle kernels push -p .            # genuine fusion test
 
 # 3. Poll status, then fetch output once complete
 kaggle kernels status <owner>/trustmed-vlm-full-run
@@ -128,17 +131,19 @@ was noise).
 - [x] **Gate 1** (unimodal baseline): full-scale DenseNet-121 — test AUROC
       0.792, AUPRC 0.865, ECE 0.052→0.040 after calibration. All improved
       over the small-scale pipeline-check numbers (0.749/0.810/0.094).
-- [x] **Gate 2** (multimodal value): zero-shot BiomedCLIP retrieval (full
-      549-study test set, several times chance level), text-robustness
-      (collapses toward chance under empty/mismatched text — the model
-      genuinely depends on report content), and an image-only/text-only/
-      fusion probe comparison. **At full scale, fusion does not beat
-      text-only** (0.955 vs 0.957 AUROC) — the small-scale run's nominal
-      "win" (0.940 vs 0.937) was noise, exactly as flagged at the time. The
-      dominant finding remains text-only (0.957) far outperforming
-      image-only (0.752), which strengthens rather than weakens the
-      label-leakage explanation (the gap *widened* with more data, which
-      leakage explains and genuine signal doesn't) — see
+- [x] **Gate 2** (multimodal value) — **met, via the unconfounded test**:
+      zero-shot BiomedCLIP retrieval (full 549-study test set, several
+      times chance level), text-robustness (collapses toward chance under
+      empty/mismatched text), a classification fusion probe comparison
+      (confounded by label leakage — fusion does *not* beat text-only,
+      0.955 vs 0.957 AUROC; the small-scale "win" there was noise), and a
+      genuine, non-label-confounded fusion test: contrastive projection
+      heads trained on the real image-report pairs (never touching the
+      derived label) **roughly double Recall@5/@10** over zero-shot
+      BiomedCLIP in both directions, with real Recall@1 gains too — a
+      healthy training curve (best checkpoint at epoch 28/200) rules out
+      overfitting. This is the project's cleanest positive multimodal
+      result and the one that actually satisfies the Gate 2 bar. See
       `reports/technical_report.md` Section 7.
 - [x] **Gate 3** (trustworthy evaluation): calibration/ECE, cross-dataset
       shift, shortcut probe, and MC-dropout uncertainty/abstention all run
@@ -159,6 +164,6 @@ was noise).
       not quietly dropped — see `reports/technical_report.md` Section 8.
 - [x] **Gate 4** (supervisor-ready): technical report and model card now
       hold real full-scale results throughout, including where full-scale
-      numbers reversed or confirmed small-scale ones. Remaining before this
-      is fully "done": a genuine (non-leaky-label) multimodal fusion test,
-      repeated-seed confidence intervals, and a final read-through polish.
+      numbers reversed or confirmed small-scale ones, and the genuine
+      fusion test above. Remaining before this is fully "done":
+      repeated-seed confidence intervals and a final read-through polish.

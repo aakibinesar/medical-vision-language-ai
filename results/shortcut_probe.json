@@ -1,10 +1,10 @@
 {
   "dataset_a": "iu_xray",
   "dataset_b": "pneumonia",
-  "n_a": 200,
-  "n_b": 200,
-  "probe_accuracy": 1.0,
-  "probe_auroc": 1.0,
-  "majority_class_baseline_accuracy": 0.5,
+  "n_a": 2568,
+  "n_b": 4448,
+  "probe_accuracy": 0.997624703087886,
+  "probe_auroc": 0.9997315044506057,
+  "majority_class_baseline_accuracy": 0.6342042755344418,
   "interpretation": "probe_auroc near 0.5 = representations don't trivially separate datasets (reassuring). probe_auroc near 1.0 = the model's features strongly encode dataset-of-origin (site/scanner shortcut risk) - probe_accuracy should be read relative to majority_class_baseline_accuracy, not in isolation."
 }

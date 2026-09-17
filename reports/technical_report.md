@@ -37,193 +37,246 @@ scaling + ECE, MC-dropout uncertainty, uncertainty-ordered risk-coverage
 (abstention), cross-dataset shift, missing/noisy-text robustness, and a
 dataset-of-origin shortcut probe on frozen penultimate features.
 
-## 4. Baseline models — preliminary results
+## 4. Baseline models — full-scale results
 
-**Caveat: these are from a small, real (non-synthetic) 240/80/80-study local
-subsample of IU X-Ray (CPU-trained, ResNet-18, 160px), used to validate the
-full pipeline end-to-end on real data while a laptop with only 2GB VRAM
-can't run a full-scale training job.** The full-scale run (2,568 train
-studies, 224px, DenseNet-121, on Kaggle's free GPU via
-`notebooks/kaggle_baseline_training.ipynb`) is what should anchor the final
-reported numbers — treat everything below as a pipeline-correctness proof,
-not the headline result.
+**These are the headline numbers**, from the full-scale run: DenseNet-121,
+224px, on the complete real IU X-Ray split (2,568 train / 549 val / 549
+test), run via the Kaggle API (see the note on methodology at the end of
+this section). An earlier small-scale pass (240/80/80 studies, ResNet-18,
+160px, local CPU) was used to validate the pipeline before committing to
+full-scale compute; those numbers are kept below each result for
+comparison, since several of them changed meaningfully at scale — that
+delta is itself informative about which small-scale findings were real
+signal versus small-sample noise.
 
-| Metric | Value |
-|---|---|
-| Test AUROC | 0.749 |
-| Test AUPRC | 0.810 |
-| ECE before calibration | 0.137 |
-| ECE after temperature scaling | 0.094 |
+| Metric | Full-scale (headline) | Small-scale (pipeline check) |
+|---|---|---|
+| Test AUROC | **0.792** | 0.749 |
+| Test AUPRC | **0.865** | 0.810 |
+| ECE before calibration | **0.052** | 0.137 |
+| ECE after temperature scaling | **0.040** | 0.094 |
 
-Training itself overfit after ~4-5 epochs (val AUROC peaked at 0.721 at
-epoch 4, then declined to 0.562 by epoch 8 while train loss kept falling) —
-expected and worth reporting honestly given only 240 training images; the
-full-scale run should show a cleaner curve.
+More training data improved both discrimination and calibration, as
+expected — and did so by more than a small tweak: ECE after calibration
+roughly halved. Full history in `outputs_full/history.json`.
 
-**Zero-shot BiomedCLIP retrieval** (400-study real IU X-Ray subsample, no
-training): image→text Recall@1/5/10 = 2.0% / 4.5% / 7.25% (chance = 0.25% /
-1.25% / 2.5% with 400 candidates) — 3-8x better than chance but weak in
-absolute terms. Full numbers in `results/retrieval_metrics.json`.
+**Zero-shot BiomedCLIP retrieval** (full real 549-study IU X-Ray test set):
+image→text Recall@1/5/10 = 1.28% / 3.64% / 5.65% (chance with 549
+candidates = 0.18% / 0.91% / 1.82%); text→image = 1.09% / 4.01% / 6.19%.
+Consistent with the small-scale finding (400-study subsample: 2.0% / 4.5% /
+7.25%) — weak in absolute terms but reliably several times chance level in
+both directions. Full numbers in `results/retrieval_metrics.json`.
 
-## 5. Evaluation metrics
+**Methodology note:** the full-scale run was executed via the Kaggle API
+(`kaggle kernels push`), not the browser notebook originally planned —
+pushing this repo's actual `src/*.py` scripts as a private Kaggle dataset
+and running them unmodified via subprocess, rather than a hand-duplicated
+notebook copy (avoiding the drift that made the very first notebook in this
+project stale within a month). Two real bugs surfaced only at this scale
+and were fixed in the actual source, not patched around: `gradcam.py`'s
+DenseNet-121 hook crashed with a PyTorch autograd "view + inplace" error
+(module-level full backward hooks conflict with DenseNet's in-place ReLU;
+fixed by switching to a tensor-level hook) and `abstention_eval.py` broke
+on Kaggle's older numpy (`np.trapezoid` doesn't exist before numpy 2.0,
+`np.trapz` was removed after — fixed with a manual trapezoidal
+calculation that depends on neither).
 
-**Text robustness** (`results/text_robustness.json`): empty and mismatched
-report text collapse retrieval to almost exactly chance level, confirming
-the model has no exploitable image-only shortcut; degradation is graded
-(original > shuffled words > truncated > mismatched/empty), not a cliff.
+## 5. Evaluation metrics (full-scale)
 
-**Cross-dataset distribution shift** (`results/shift_metrics.json` — same
-small local checkpoint, evaluated on the full real Pneumonia test set,
-n=624): AUROC actually *held up* under shift (0.749 in-distribution →
-0.771 on Pneumonia), but **calibration broke down badly**: ECE went from
-0.094 (in-distribution, post temperature-scaling) to 0.263 on the shift
-set, with the model averaging 88.8% predicted-abnormal probability against
-a true 62.5% pneumonia rate — systematically overconfident under shift even
-though its ranking of cases stayed reasonable. Discrimination and
-calibration are not the same kind of robustness, and this result is exactly
-why the project plan treats them as separate mandatory evaluation blocks.
+**Text robustness** (`results/text_robustness.json`, full 549-study test
+set): same healthy pattern as the small-scale pass — empty and mismatched
+report text collapse retrieval to near chance level, confirming the model
+has no exploitable image-only shortcut in the retrieval task; degradation
+is graded (original > shuffled words > truncated > mismatched/empty), not a
+cliff. Replicated cleanly at scale, nothing revised here.
 
-**Shortcut probe** (`results/shortcut_probe.json`, 200 real images per
-dataset): a linear probe on the trained model's frozen penultimate features
-separates IU X-Ray from Pneumonia-dataset images with **AUROC = 1.0** —
-perfect separability. This is a real shortcut-learning flag: the
-representations strongly encode acquisition source (hospital/scanner/
-preprocessing), consistent with well-documented findings in the medical
-imaging robustness literature that classifiers often pick up "which
-institution" signal alongside or instead of pathology signal. It also
-tempers the shift result above — some of the preserved AUROC under shift
-could be aided by the model implicitly recognizing "this is a different
-kind of scan" rather than purely reasoning about pathology.
+**Cross-dataset distribution shift** (`results/shift_metrics.json`,
+full-scale checkpoint, full real Pneumonia test set, n=624): AUROC again
+*held up* under shift, and by a larger margin than at small scale (0.792
+in-distribution → 0.833 on Pneumonia). **Calibration again degraded**, ECE
+going from 0.040 (in-distribution) to 0.131 on the shift set — about 3.3x
+worse, a similar ratio to the small-scale run's 2.8x. The model still
+over-predicts abnormality on the shift set (mean predicted probability
+0.725 vs. a true 62.5% pneumonia rate) but less dramatically than the
+small-scale checkpoint did (88.8%) — more training data made the
+overconfidence-under-shift problem smaller, not solved. The qualitative
+finding replicates: discrimination survives distribution shift better than
+calibration does.
+
+**Shortcut probe** (`results/shortcut_probe.json`, full real training sets:
+2,568 IU X-Ray + 4,448 Pneumonia images, n=7,016 combined): a linear probe
+on frozen features separates the two datasets with **AUROC = 0.9997,
+accuracy 99.8%** (vs. a 63.4% majority-class baseline) — effectively
+perfect, and now confirmed on an order of magnitude more data than the
+small-scale run's already-perfect 1.0/1.0 on 400 images. This rules out the
+small-scale result being a tiny-sample fluke: the representations robustly
+and near-completely encode acquisition source. Still the same caveat as
+before — this doesn't by itself prove the classifier's *predictions* rely
+on the shortcut, only that the information is trivially present in the
+learned features and available to be relied upon.
 
 **MC-dropout uncertainty + abstention** (`results/mc_dropout_summary.json`,
-`results/abstention_metrics.json`, 20 stochastic passes, real 80-study test
-set): predictive std was nearly identical between correct and incorrect
-predictions (0.084 vs 0.086), and uncertainty-ordered abstention performed
-*no better than random-order abstention* (area-under-risk-coverage 0.3117
-vs 0.3117). Honest negative result at this scale: with only 240 training
-images, the dropout-based uncertainty estimate isn't yet informative enough
-to usefully triage predictions. Worth re-running at full scale (more
-training data typically sharpens MC-dropout's epistemic signal) before
-drawing a final conclusion.
+`results/abstention_metrics.json`, 20 stochastic passes, full 549-study
+test set): **this is the result that changed most at scale.** The
+small-scale run found predictive std nearly identical for correct vs.
+incorrect predictions (0.084 vs. 0.086) and uncertainty-ordered abstention
+no better than random. At full scale, predictive std is clearly separated —
+0.029 for correct predictions vs. 0.047 for incorrect ones (incorrect
+predictions carry ~64% higher epistemic uncertainty) — and uncertainty-
+ordered abstention roughly **halves** risk relative to random-order
+abstention (area-under-risk-coverage 0.170 vs. 0.323). The small-scale null
+result was exactly what the earlier draft of this report predicted it might
+be: an artifact of too little training data for MC-dropout's epistemic
+signal to sharpen, not a real property of the method. At full scale,
+uncertainty-aware abstention is a genuinely useful triage signal on this
+task.
 
 ## 6. Explainability
 
-Grad-CAM overlays in `results/gradcam_examples/` (Pneumonia-dataset examples
-only for any public figures — IU X-Ray is CC BY-NC-ND, see `MODEL_CARD.md`).
+Grad-CAM overlays in `results/gradcam_examples/`, full-scale checkpoint, 6
+real IU X-Ray test images (not for public figures — CC BY-NC-ND, see
+`MODEL_CARD.md`; use Pneumonia-dataset examples for anything public-facing).
+
+One overlay (a correctly-identified-as-normal case, true=0, p=0.31) shows
+its hottest activation region centered on the image's "L" laterality
+marker/annotation text in the corner, not on lung tissue. A single example
+isn't a finding by itself, but it's a concrete, visible instance of exactly
+the kind of thing the shortcut probe (Section 5) found abstractly: the
+model has access to, and apparently sometimes attends to, image metadata/
+annotation artifacts rather than purely anatomical content. Worth a
+systematic check (do laterality markers correlate with any prediction
+pattern across the full test set?) as follow-up work rather than concluding
+from one image.
 
 ## 7. Multimodal / foundation-model extension
 
 **Fusion baseline** (`results/fusion_baseline.json`, `fusion_baseline.py`):
 frozen BiomedCLIP image and text embeddings, logistic-regression probes,
-same 240/80/80 real IU X-Ray split as Section 4, so this is directly
-comparable to the CNN baseline.
+full real IU X-Ray split (2,568/549/549) — directly comparable to Section 4.
 
 | Feature set | Test AUROC | Test AUPRC | ECE (calibrated) |
 |---|---|---|---|
-| Image-only (BiomedCLIP embedding + probe) | 0.653 | 0.731 | 0.075 |
-| Text-only (BiomedCLIP embedding + probe) | 0.937 | 0.946 | 0.120 |
-| Fusion (image+text) | 0.940 | 0.950 | 0.100 |
+| Image-only (BiomedCLIP embedding + probe) | 0.752 | 0.846 | 0.047 |
+| Text-only (BiomedCLIP embedding + probe) | **0.957** | 0.973 | 0.044 |
+| Fusion (image+text) | 0.955 | 0.972 | 0.047 |
 
-**Gate 2's literal bar — "fusion beats the best unimodal baseline" — is
-technically met (0.940 vs. 0.937), but the margin is 0.003 AUROC on an
-80-example test set: not distinguishable from noise, and should not be
-reported as "fusion works."**
+**This reverses the small-scale "verdict."** At small scale (80 test
+examples), fusion (0.940) nominally edged out text-only (0.937) — a margin
+this report already flagged as noise, not a real effect. At full scale (549
+test examples, a far more reliable comparison), **fusion does not beat
+text-only** (0.955 vs. 0.957) — confirming that caution was warranted. This
+is exactly the outcome the small-scale section predicted was likely and
+is the cleanest evidence in this whole project that a small-sample "win"
+needs treating with real skepticism until it's checked at scale.
 
-The finding that actually matters here is text-only (0.937) dramatically
-outperforming image-only (0.653). This is **not** strong evidence that
-report text carries far more diagnostic signal than the image — it's the
-label-leakage risk flagged in `MODEL_CARD.md` showing up empirically: the
-`Abnormal` label is derived from the same report's Problems/MeSH field, so
-a text classifier is partly reading its own label back out of correlated
-text, not doing independent clinical reasoning. The image-only probe
-(0.653) also underperforms the separately fine-tuned end-to-end ResNet-18
-CNN baseline (0.749, Section 4) — expected, since BiomedCLIP's image tower
-here is frozen and generic, not fine-tuned on this task, unlike the CNN.
+The text-vs-image gap itself is confirmed, not reduced, at full scale
+(0.957 vs. 0.752, an even larger gap than small-scale's 0.937 vs. 0.653).
+This strengthens rather than weakens the label-leakage explanation from the
+small-scale pass: the `Abnormal` label is derived from the same report's
+Problems/MeSH field, so a text classifier is partly reading its own label
+back out of correlated text. If this were genuine diagnostic signal in the
+prose rather than leakage, there's no obvious reason the gap should *widen*
+with 10x more training data — leakage explanations don't average out with
+scale the way genuine-but-noisy signal would.
 
-**Honest reading:** this baseline doesn't yet demonstrate that multimodal
-fusion adds real value beyond what a leaky text-derived label already gives
-away. A more defensible fusion test would need either (a) a label that
-isn't derived from the same text being fed to the model, or (b) evaluating
-on the retrieval task instead of classification, where no such leakage path
-exists (see Section 4's zero-shot retrieval numbers, which don't have this
-confound). Both are queued as future work rather than re-run now, per the
-"one dataset, controlled scope" sequencing this project has followed
-throughout.
+**Honest reading, updated:** the full-scale run doesn't just fail to show a
+fusion benefit — it actively demonstrates fusion providing no measurable
+value over text alone on this task/label, once the small-sample noise is
+removed. The Gate 2 stage-gate condition ("fusion adds measurable value
+beyond the strongest unimodal baseline") is **not met** on this
+classification setup. A more defensible fusion test still needs either (a)
+a label that isn't derived from the same text being fed to the model, or
+(b) evaluating on the retrieval task instead of classification, where no
+such leakage path exists (Section 4's zero-shot retrieval numbers don't
+have this confound, and are the more honest multimodal evidence in this
+report).
 
 ## 8. Error analysis
 
-Per-example predictions for the image-only CNN baseline (Section 4 checkpoint,
-real 80-study test set) written by `error_analysis.py` to
-`results/error_analysis_predictions.csv`, with report text attached to every
-prediction so errors can be read, not just counted.
+Per-example predictions for the full-scale image-only checkpoint (Section 4)
+on the full real 549-study test set, from `error_analysis.py`, with report
+text attached to every prediction.
 
-**Confusion breakdown (threshold 0.5):** TP=30, TN=23, FP=12, FN=15 —
-sensitivity (recall) 0.667, specificity 0.657, precision 0.714. Roughly
-balanced error profile, no strong bias toward over- or under-calling
-abnormality overall, but the *type* of error clusters sharply once you read
-the report text attached to each case.
+**Confusion breakdown (threshold 0.5):** TP=266, TN=133, FP=72, FN=78 —
+sensitivity (recall) 0.773, specificity 0.649, precision 0.787. All three
+improved over the small-scale run (0.667 / 0.657 / 0.714), consistent with
+the better AUROC/AUPRC in Section 4.
 
-**False negatives cluster around subtle, chronic findings.** Of the 15 FN
-cases (model confidently predicted "normal," ground truth "abnormal"), the
-large majority describe calcifications, granulomas, or mild/minimal changes:
-*"calcified density in the left mid lung, most likely a calcified
-granuloma"*; *"Scattered calcifications... compatible with prior
-granulomatous disease"*; *"Nodular densities consistent with chronic
-granulomatous disease"*; *"left hilar calcifications... unchanged from the
-prior"*; *"Minimal right middle lobe atelectasis"*; *"Mild hyperinflation"*;
-*"Elevated right hemidiaphragm"*; *"Right hemidiaphragm eventration"*. These
-are visually subtle, low-contrast, often chronic/healed findings — exactly
-the category a 240-image training set gives the least exposure to, since
-each specific subtle pattern (granuloma vs. eventration vs. mild
-atelectasis) appears only a handful of times. This is a data-scale problem,
-not obviously a modeling-choice problem — worth re-checking against the
-full-scale run before concluding anything stronger.
+**The small-scale qualitative narrative does not hold up cleanly at full
+scale — worth stating plainly rather than quietly dropping.** The
+small-scale pass (n=15 FN, n=12 FP) read as two clean patterns: FN cases
+were "subtle chronic findings," FP cases were "postsurgical hardware/
+salient-but-non-diagnostic." At full scale (n=78 FN, n=72 FP), a keyword
+check across every case (not just the 10-12 most confident ones, which is
+what the small-scale write-up effectively was) tells a messier story:
 
-**False positives cluster around images with visually salient but
-non-diagnostic content.** Of the 12 FP cases (model confidently predicted
-"abnormal," ground truth "normal"), several involve postsurgical hardware
-or reference to a prior/stable state rather than a clean, unremarkable
-study: *"Postsurgical changes of ... sternotomy with screw fixation of
-anterior ... plates"*; two cases reading *"Stable cardiomediastinal
-silhouette. No focal pulmonary opacity, pleural effusion or pneumothorax"*.
-A plausible mechanism: sternotomy wires/screws are visually striking
-artifacts in a chest X-ray, and the model may be keying on "does this image
-look unusual" rather than on disease-specific visual patterns — since the
-`Abnormal` label is disease-presence, not image-unusualness, postsurgical
-hardware without active disease is coded "normal" but may still look
-visually anomalous to the model. This would be a genuine (if mundane)
-shortcut-adjacent finding, distinct from the site/scanner shortcut in
-Section 5 but in the same family: the model may be responding to salience
-rather than pathology in some cases.
+- **FN cases**: 81% mention acute-sounding findings (pneumonia, airspace
+  disease, infiltrate, consolidation, effusion, pneumothorax, cuffing,
+  edema) and 49% mention subtle/chronic language (calcification, granuloma,
+  chronic, mild, minimal, stable, unchanged) — these aren't mutually
+  exclusive, but the takeaway is that the "FN = subtle chronic findings
+  only" story from small scale was too clean. Reading the lowest-confidence
+  FN cases individually, calcified-granuloma-type findings are still
+  over-represented at the very bottom (most confidently wrong), but the
+  full 78-case set also includes clear misses of real acute findings like
+  *"Left lower lobe ... segment pneumonia"* (p=0.223) and *"Right upper
+  lobe airspace disease consistent with pneumonia"* (p=0.233) — the model
+  is missing more than just the hard subtle cases.
+- **FP cases**: only 17% (12/72) contain postsurgical/hardware/prior-
+  reference language — a real pattern (still visible at the top of the
+  confidence-sorted list: *"Postsurgical changes of ... sternotomy with
+  screw fixation"* at p=0.925), but a minority explanation, not the
+  dominant one the small-scale sample suggested.
 
-**Caveat:** both patterns are read from only 27 misclassified examples on a
-240-image-trained model — suggestive, not statistically robust. The
-concrete, useful next step is re-running this same script against the
-full-scale checkpoint and checking whether the same two patterns persist,
-weaken, or disappear with more training data.
+**The honest lesson here is methodological, not just about this model**: a
+qualitative read of a dozen examples can produce a clean-sounding narrative
+that a systematic keyword check across the full error set doesn't
+support. The small-scale error analysis wasn't wrong that these patterns
+exist — both are still visible in the data — it was wrong to imply they
+were the dominant story. Keyword matching itself is a blunt instrument
+(e.g. "no consolidation" would match on the word "consolidation" despite
+describing an absent finding), so even this full-scale check should be read
+as a better approximation, not a final word — a next step worth doing is
+having an actual per-case read of a larger, randomly-sampled subset rather
+than either the most-confident extremes or fully automated keyword counts.
 
 ## 9. Limitations
 
-- All classification numbers to date are from a small local CPU subsample,
-  not the full training set — see the caveat in Section 4.
 - IU X-Ray's `Abnormal` label is a heuristic derived from the same report
-  used for the multimodal comparison — see the label-leakage discussion in
-  `MODEL_CARD.md`.
+  used for the multimodal comparison — confirmed as a real, non-trivial
+  effect at full scale (Section 7), not just a theoretical risk.
 - Chest X-Ray Pneumonia has no patient IDs (image-wise split, not
   patient-wise) — a pre-existing limitation of that dataset.
+- The shortcut probe (Section 5) shows the model's representations encode
+  acquisition source almost perfectly; this does not by itself prove
+  predictions depend on it, only that the information is present and usable.
+- The full-scale error-analysis keyword check (Section 8) is a blunt
+  instrument (naive string matching, no negation handling) — a genuine
+  clinical read of a larger random sample would be more reliable.
+- No fine-tuned/contrastive multimodal model has been trained — only
+  zero-shot retrieval and frozen-embedding classification probes. The
+  retrieval numbers remain the cleanest multimodal evidence in this report,
+  since they're not confounded by the label-leakage issue.
+- All full-scale results are from a single training run per configuration
+  (no repeated-seed variance estimate) — point estimates, not confidence
+  intervals.
 
 ## 10. Future work
 
-- Run the full-scale training job on Kaggle (Gate 1 completion) and re-run
-  every Gate 3 evaluation (shift, shortcut, MC-dropout/abstention) plus
-  `error_analysis.py` (Section 8) against it — small-scale results above are
-  directionally interesting but need confirming at scale, especially the
-  null abstention result and the two error-analysis patterns.
 - Investigate the shortcut-probe finding further: which features drive the
-  perfect dataset separability (image statistics/preprocessing artifacts vs.
-  something more concerning)? Would inform whether domain-adaptation or
-  harmonization preprocessing is worth adding.
-- Re-test multimodal fusion with a label that isn't text-derived (removes
-  the leakage confound found in Section 7), or lean on the retrieval task
-  instead of classification, where the confound doesn't apply.
+  near-perfect dataset separability (image statistics/preprocessing
+  artifacts vs. something more concerning)? Would inform whether
+  domain-adaptation or harmonization preprocessing is worth adding. The
+  Grad-CAM laterality-marker observation (Section 6) is a concrete starting
+  point.
+- A genuine multimodal fusion test needs either a label that isn't
+  text-derived, or should lean on the retrieval task instead of
+  classification, where the leakage confound doesn't apply (Section 7).
+- A systematic (not keyword-based) read of a larger random error sample,
+  to properly characterize the FN/FP patterns hinted at in Section 8.
+- Repeated-seed runs for confidence intervals on the headline numbers.
 - MIMIC-CXR upgrade, pending PhysioNet credentialing.
+- Grand Challenge participation (REG2027/CXR-LT 2027 preferred; BEETLE
+  parked on an unresolved storage question; AMIA/VinBigData detection
+  queued as a no-deadline fallback) — per Prof Slabaugh's feedback, now
+  that Project 1's core gates are complete.

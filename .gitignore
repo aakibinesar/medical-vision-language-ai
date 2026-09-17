@@ -4,11 +4,14 @@ __pycache__/
 data/chest_xray/
 data/*.csv
 data_iuxray/
+data_iuxray_full/
 data_multimodal_smoke/
 outputs/
 outputs_mm_smoke/
 outputs_iuxray_local/
 outputs_iuxray_local_dropout/
+outputs_full/
+outputs_full_dropout/
 results_mm_smoke/
 results/*.png
 results/*.csv

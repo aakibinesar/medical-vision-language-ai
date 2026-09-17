@@ -1,10 +1,10 @@
 {
   "label": "Abnormal",
   "n_samples": 20,
-  "n_examples": 80,
-  "mean_predictive_std": 0.08481933176517487,
+  "n_examples": 549,
+  "mean_predictive_std": 0.03491373732686043,
   "std_correct_vs_incorrect": {
-    "correct_pred_mean_std": 0.08423621207475662,
-    "incorrect_pred_mean_std": 0.08590225875377655
+    "correct_pred_mean_std": 0.02868926338851452,
+    "incorrect_pred_mean_std": 0.04696326702833176
   }
 }

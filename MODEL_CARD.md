@@ -117,8 +117,10 @@ verdict (nominal small-scale "win" → full-scale loss). Full numbers:
 - **Classification (`results/metrics_seed_ci.json`)**: AUROC 0.784 ± 0.010
   and AUPRC 0.864 ± 0.004 are tight and reliable. **ECE after calibration
   is 0.080 ± 0.045 — the originally-reported 0.040 was the best of three
-  seeds, not typical**, and the seed with the best AUROC (0.788) had the
-  worst calibration (0.130) of the three. Report 0.080 ± 0.045 as the
+  seeds, not typical** (per-seed ECE: 0.040 / 0.071 / 0.130). No clean
+  discrimination-vs-calibration trade-off across seeds — the best-AUROC
+  seed (42) also has the best calibration — just much higher seed-to-seed
+  variance in calibration than in AUROC/AUPRC. Report 0.080 ± 0.045 as the
   honest calibration number going forward, not 0.040.
 - **Contrastive projection fusion (`results/contrastive_projection.json`)**:
   confirmed robust — e.g. image→text Recall@5 7.41% ± 0.42% (trained) vs.

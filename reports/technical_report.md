@@ -1,7 +1,5 @@
 # TrustMed-VLM: Trustworthy Medical Vision-Language AI Under Distribution Shift
 
-*Draft skeleton — fill in as each phase completes.*
-
 **Novelty target (from the Project 1 red-team assessment):** a systematic
 comparison of image-only and medical vision-language models under limited
 labels, missing or corrupted text, calibration error, shortcut dependence,
@@ -9,10 +7,51 @@ and cross-environment distribution shift, including uncertainty-aware
 abstention. The result is not "we fine-tuned a VLM on medical images" — it's
 the reliability/robustness comparison itself.
 
+## Key findings at a glance
+
+- **Discrimination and calibration are consistently different axes of
+  reliability** — the recurring theme of this report. AUROC survives
+  distribution shift and is stable across training seeds; calibration
+  degrades under shift and varies 3x across seeds (Sections 4-5).
+- **The genuine fusion win is in retrieval, not classification.** A
+  contrastive-projection model trained on real image-report pairs roughly
+  doubles retrieval Recall@5/@10 over zero-shot BiomedCLIP, confirmed
+  across 3 seeds (Section 7). The classification "fusion" test looked
+  promising at small scale but was noise — at full scale it doesn't beat a
+  text-only baseline confounded by label leakage (Section 7).
+- **MC-dropout uncertainty is scale-dependent**: useless at small scale
+  (null result), genuinely informative at full scale — uncertainty-ordered
+  abstention roughly halves risk vs. random (Section 5).
+- **A near-perfect shortcut signal exists**: a linear probe tells IU X-Ray
+  and Pneumonia images apart with AUROC 0.9997 from frozen features alone
+  (Section 5), and one Grad-CAM example shows the model attending to an
+  image annotation marker rather than anatomy (Section 6).
+- **Small-scale qualitative read do not always survive full-scale
+  scrutiny** — the clearest lesson of the whole project. This showed up at
+  least three times: the fusion classification "win" (Section 7), the
+  error-analysis FP/FN narrative (Section 8), and the single-seed ECE
+  headline number (Section 4). None were wrong to notice; all were
+  overstated until checked at scale or repeated over seeds.
+
 ## 1. Motivation
 
-(TODO: clinical framing, why image-only vs. multimodal reliability matters
-under limited labels and distribution shift.)
+Clinical decision support built on medical imaging has to work outside the
+exact distribution it was validated on — different hospitals, scanners,
+patient populations, and label conventions than whatever produced the
+training set. A model that scores well on held-out data from its own
+source but silently becomes overconfident or unreliable elsewhere is a
+worse deployment risk than one that is honestly mediocre everywhere,
+because the failure is invisible until it causes harm. This project treats
+that reliability question as the actual research object, not an
+afterthought bolted onto an accuracy number: given a chest X-ray
+classification task with paired radiology reports, does combining image
+and text carry real information beyond either alone, and does whatever
+model results stay trustworthy — calibrated, robust to shift, honest about
+its own uncertainty — outside the exact setting it was built in? The
+project is deliberately structured so accuracy is necessary but not
+sufficient: a result only counts once it has been checked for calibration,
+distribution shift, shortcut dependence, and (where relevant) whether it
+survives being re-run at a larger scale or across multiple seeds.
 
 ## 2. Dataset
 
@@ -73,14 +112,18 @@ seeds 42/43/44, identical hyperparameters, only the random seed differs):
 *best* of three seeds, not a typical one.** AUROC and AUPRC are tight and
 stable across seeds (std around 1% relative) — genuinely reliable numbers.
 Calibration is not: ECE after calibration ranges more than 3x across seeds
-(0.040 to 0.130), and the seed with the *best* discrimination (44, AUROC
-0.788) has the *worst* calibration (ECE 0.130) of the three. This is the
-same qualitative lesson as Section 5's shift result and the shortcut probe
-— discrimination and calibration are genuinely different kinds of
-reliability, and this time the evidence is that calibration is also more
-seed-sensitive, not just more shift-sensitive. The honest headline number
-for calibration going forward is 0.080 ± 0.045, not 0.040 — reporting the
-single best-seed value alone would have been quietly misleading.
+(0.040 to 0.130). Seed 42 happens to be good on both axes (best AUROC
+*and* best calibration of the three), so this isn't a clean "better
+discrimination trades off against calibration" story — seed 44 has the
+second-best AUROC (0.788, behind seed 42's 0.792) but by far the worst
+calibration (ECE 0.130), and seed 43 has the worst AUROC (0.772) with
+middling calibration (0.071). With only 3 seeds there's too little data to
+say discrimination and calibration trade off against each other; the safe
+conclusion is narrower but still real: calibration is far more seed-
+sensitive than discrimination, for reasons this data can't isolate. The
+honest headline number for calibration going forward is 0.080 ± 0.045, not
+0.040 — reporting the single best-seed value alone would have been quietly
+misleading.
 
 **Zero-shot BiomedCLIP retrieval** (full real 549-study IU X-Ray test set):
 image→text Recall@1/5/10 = 1.28% / 3.64% / 5.65% (chance with 549

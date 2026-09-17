@@ -6,6 +6,5 @@ scikit-learn
 Pillow
 matplotlib
 tqdm
-scipy
 open_clip_torch
 transformers

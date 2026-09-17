@@ -27,26 +27,35 @@ def get_last_conv_layer(model, model_name):
 
 
 class GradCAM:
+    """Hooks the target layer's output tensor directly (via `Tensor.register_hook`)
+    rather than `Module.register_full_backward_hook`. DenseNet121 applies an
+    in-place ReLU immediately after `features.norm5`, and a full backward hook
+    wraps the module's output in a way that conflicts with that later in-place
+    op ("view + inplace" autograd error) — a tensor-level hook avoids the
+    wrapping entirely and works for any architecture.
+    """
+
     def __init__(self, model, target_layer):
         self.model = model
         self.activations = None
         self.gradients = None
         target_layer.register_forward_hook(self._save_activation)
-        target_layer.register_full_backward_hook(self._save_gradient)
 
     def _save_activation(self, module, inp, out):
-        self.activations = out.detach()
+        self.activations = out
+        out.register_hook(self._save_gradient)
 
-    def _save_gradient(self, module, grad_in, grad_out):
-        self.gradients = grad_out[0].detach()
+    def _save_gradient(self, grad):
+        self.gradients = grad.detach()
 
     def __call__(self, x, class_idx=0):
         self.model.zero_grad()
         logits = self.model(x)
         score = logits[:, class_idx].sum()
         score.backward()
+        activations = self.activations.detach()
         weights = self.gradients.mean(dim=(2, 3), keepdim=True)
-        cam = F.relu((weights * self.activations).sum(dim=1))
+        cam = F.relu((weights * activations).sum(dim=1))
         cam = cam - cam.amin(dim=(1, 2), keepdim=True)
         cam = cam / (cam.amax(dim=(1, 2), keepdim=True) + 1e-8)
         return cam  # (B, H, W) in [0, 1]

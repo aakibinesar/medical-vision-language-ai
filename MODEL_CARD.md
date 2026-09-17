@@ -55,46 +55,55 @@ retrieval-based evaluation (which doesn't use the derived label at all) but
 does mean the classification numbers should be read as an upper bound, not a
 tight estimate, of image-only vs. multimodal advantage.
 
-**This risk is now confirmed empirically, not just theoretical.** The fusion
-baseline (below) shows text-only classification (AUROC 0.937) dramatically
-outperforming image-only (0.653) — consistent with the text classifier
-partly reading its own label back out of correlated report text, not
-demonstrating that reports carry far more diagnostic signal than images.
+**This risk is confirmed empirically at full scale, and gets worse with
+more data, not better.** The fusion baseline (below) shows text-only
+classification (AUROC 0.957 at full scale) dramatically outperforming
+image-only (0.752) — an even larger gap than the small-scale pass (0.937 vs
+0.653). If this were genuine diagnostic signal in the prose rather than
+leakage, the gap would be expected to narrow, not widen, with 10x more
+training data — this pattern is much more consistent with leakage than
+with reports simply being more informative than images.
 
-## Trustworthy-evaluation results (real data, small-scale)
+## Trustworthy-evaluation results (real data, full scale)
 
-All results below are from a small, real (non-synthetic) 240/80/80-study
-local IU X-Ray subsample — see `reports/technical_report.md` Section 4 for
-the full-scale-run caveat. Full numbers: `results/shift_metrics.json`,
-`results/shortcut_probe.json`, `results/mc_dropout_summary.json`,
-`results/abstention_metrics.json`.
+Full-scale run: DenseNet-121, 224px, full real IU X-Ray split (2,568 train /
+549 val / 549 test), executed via the Kaggle API. An earlier small-scale
+pass (240/80/80 studies, local CPU) validated the pipeline first; see
+`reports/technical_report.md` for the full small-scale-vs-full-scale
+comparison — several results changed meaningfully at scale, most notably
+MC-dropout uncertainty (null result → clearly informative) and the fusion
+verdict (nominal small-scale "win" → full-scale loss). Full numbers:
+`results/shift_metrics.json`, `results/shortcut_probe.json`,
+`results/mc_dropout_summary.json`, `results/abstention_metrics.json`.
 
-- **Distribution shift** (evaluated on the real Pneumonia test set, n=624):
-  AUROC held up (0.749 → 0.771) but ECE roughly tripled (0.094 → 0.263) —
-  discrimination survived the shift, calibration didn't.
-- **Shortcut probe**: a linear probe on frozen features separates IU X-Ray
-  from Pneumonia images with AUROC = 1.0 — the representations strongly
-  encode acquisition source (hospital/scanner), a real shortcut-learning
-  flag that tempers how the shift result above should be read.
-- **MC-dropout uncertainty + abstention**: predictive std was nearly
-  identical for correct vs. incorrect predictions, and uncertainty-ordered
-  abstention performed no better than random. Honest null result at this
-  scale — needs re-checking on the full-scale run before concluding
-  anything about whether MC-dropout uncertainty is useful here.
-- **Fusion baseline** (image-only 0.653 vs. text-only 0.937 vs. fusion 0.940
-  AUROC, same real split as the CNN baseline): fusion technically edges out
-  the best unimodal score, but by 0.003 AUROC on 80 test examples — not a
-  real effect. The dominant result is text-only crushing image-only, which
-  is the label-leakage risk above showing up empirically rather than
-  evidence of genuine multimodal benefit. See
+- **Distribution shift** (real Pneumonia test set, n=624): AUROC held up,
+  even improved (0.792 → 0.833), but ECE nearly tripled (0.040 → 0.131) —
+  discrimination survives distribution shift better than calibration does,
+  replicating the small-scale finding at a larger, more reliable margin.
+- **Shortcut probe** (7,016 combined real images, 10x the small-scale n):
+  a linear probe on frozen features separates IU X-Ray from Pneumonia
+  images with AUROC = 0.9997, accuracy 99.8% (vs. 63.4% majority baseline)
+  — confirms the small-scale perfect-separability finding was not a
+  tiny-sample fluke.
+- **MC-dropout uncertainty + abstention — reversed from small scale**: at
+  full scale, predictive std is clearly higher for incorrect predictions
+  (0.047) than correct ones (0.029), and uncertainty-ordered abstention
+  roughly halves risk vs. random-order abstention (0.170 vs 0.323
+  area-under-risk-coverage). The small-scale null result was an artifact of
+  too little training data, not a real property of the method.
+- **Fusion baseline** (image-only 0.752 vs. text-only 0.957 vs. fusion
+  0.955 AUROC): fusion does **not** beat text-only at full scale — this
+  reverses the small-scale pass's nominal (and, in retrospect, noise-level)
+  "win." The Gate 2 bar ("fusion adds measurable value beyond the best
+  unimodal baseline") is not met on this classification setup. See
   `reports/technical_report.md` Section 7 for the full discussion.
+- **Grad-CAM**: one overlay's hottest region centers on an "L" laterality
+  marker rather than lung tissue — a concrete, visible instance of the kind
+  of shortcut the probe above found abstractly. Not a systematic finding by
+  itself (one image), but a good, precise follow-up target.
 
 ## Limitations
 
-- All classification/shift/shortcut/uncertainty numbers to date are from
-  the small local CPU subsample described above, not the full 2,568-study
-  training set — the full-scale Kaggle GPU run is still pending and should
-  anchor final reported numbers.
 - IU X-Ray split is by study `uid`, which is effectively patient-level for
   this corpus, but this hasn't been independently verified against a true
   patient identifier.
@@ -103,6 +112,10 @@ the full-scale-run caveat. Full numbers: `results/shift_metrics.json`,
   disclosed in `DATASET_DATASHEET.md`.
 - The fusion baseline's classification comparison is confounded by
   text-label leakage (see above) — it does not cleanly answer "does fusion
-  help," only "does fusion beat a leaky text baseline" (barely, within
-  noise). A clean fusion test needs either a non-text-derived label or
-  evaluation on the retrieval task instead.
+  help," only "does fusion beat a leaky text baseline" (no, at full scale).
+  A clean fusion test needs either a non-text-derived label or evaluation
+  on the retrieval task instead, where no such leakage path exists.
+- The shortcut probe shows the representations encode acquisition source
+  almost perfectly; this doesn't by itself prove the classifier's
+  predictions depend on it, only that the information is present and usable.
+- Single run per configuration — no repeated-seed confidence intervals.

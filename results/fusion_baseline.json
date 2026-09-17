@@ -1,32 +1,32 @@
 {
   "image": {
-    "best_C": 0.1,
-    "test_auroc": 0.6533333333333333,
-    "test_auprc": 0.7313276447853585,
-    "ece_before_calibration": 0.09267127513885498,
-    "ece_after_calibration": 0.07452201843261719,
-    "temperature": 1.1413092613220215
+    "best_C": 10.0,
+    "test_auroc": 0.7516874645490641,
+    "test_auprc": 0.8461794450675417,
+    "ece_before_calibration": 0.04207870917139947,
+    "ece_after_calibration": 0.04651561937262033,
+    "temperature": 0.9765611290931702
   },
   "text": {
     "best_C": 10.0,
-    "test_auroc": 0.9365079365079365,
-    "test_auprc": 0.9458923054400626,
-    "ece_before_calibration": 0.12231934126466512,
-    "ece_after_calibration": 0.12028939547017216,
-    "temperature": 0.6578330993652344
+    "test_auroc": 0.9567285876347136,
+    "test_auprc": 0.9730378228146848,
+    "ece_before_calibration": 0.043669483234908095,
+    "ece_after_calibration": 0.04385900448169486,
+    "temperature": 0.5433019399642944
   },
   "fusion": {
     "best_C": 10.0,
-    "test_auroc": 0.9396825396825397,
-    "test_auprc": 0.9504783906947958,
-    "ece_before_calibration": 0.12949926834553482,
-    "ece_after_calibration": 0.10049150087870655,
-    "temperature": 0.6602356433868408
+    "test_auroc": 0.9550907543959161,
+    "test_auprc": 0.9724459548608229,
+    "ece_before_calibration": 0.03939950496565149,
+    "ece_after_calibration": 0.04732768585391249,
+    "temperature": 0.530903697013855
   },
   "gate_2_verdict": {
-    "fusion_beats_best_unimodal_auroc": true,
-    "fusion_auroc": 0.9396825396825397,
-    "best_unimodal_auroc": 0.9365079365079365,
+    "fusion_beats_best_unimodal_auroc": false,
+    "fusion_auroc": 0.9550907543959161,
+    "best_unimodal_auroc": 0.9567285876347136,
     "note": "Per the project plan, Gate 2 requires fusion to add measurable value (performance, calibration, robustness, or interpretability) beyond the strongest unimodal baseline - not just added complexity."
   }
 }

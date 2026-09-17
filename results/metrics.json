@@ -1,13 +1,13 @@
 {
-  "auroc_macro": 0.7492063492063492,
-  "auprc_macro": 0.8100725661283318,
-  "temperature": 2.6935644149780273,
-  "ece_before_calibration": 0.13713750019669535,
-  "ece_after_calibration": 0.09397100452333687,
+  "auroc_macro": 0.7921015314804312,
+  "auprc_macro": 0.8650137035872036,
+  "temperature": 0.8200375437736511,
+  "ece_before_calibration": 0.0519883640938335,
+  "ece_after_calibration": 0.03991902348176595,
   "per_label": {
     "Abnormal": {
-      "auroc": 0.7492063492063492,
-      "auprc": 0.8100725661283318
+      "auroc": 0.7921015314804312,
+      "auprc": 0.8650137035872036
     }
   }
 }

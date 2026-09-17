@@ -46,7 +46,7 @@ medical-vision-language-ai-portfolio/
 │   ├── shortcut_probe.py            # dataset-of-origin linear probe (shortcut-learning check)
 │   ├── uncertainty_mc_dropout.py, abstention_eval.py  # MC-dropout uncertainty + risk-coverage
 │   └── error_analysis.py            # per-example predictions + FP/FN report-text inspection
-├── notebooks/kaggle_baseline_training.ipynb   # run this on Kaggle for real GPU training
+├── kaggle/                     # the actual scripts that ran the full-scale GPU job (see kaggle/README.md)
 ├── data/                       # not committed; see data/README.md
 ├── results/                    # metrics, plots, Grad-CAM examples (generated)
 ├── reports/technical_report.md
@@ -57,9 +57,14 @@ medical-vision-language-ai-portfolio/
 ## Why local + Kaggle
 
 Developed on a laptop with a 2GB-VRAM GPU (NVIDIA MX450) — enough to write and
-smoke-test code, not enough to train at real resolution or run BiomedCLIP over
-a full dataset at speed. Local work stays on tiny synthetic data; real runs
-happen on Kaggle's free GPU.
+smoke-test code (and even train small real-data checkpoints slowly on CPU),
+not enough for full-scale training or fast BiomedCLIP inference over a full
+dataset. Local work stays on tiny synthetic data or small real subsamples for
+pipeline validation; the full-scale, headline-number run happens on Kaggle's
+free GPU — driven end-to-end via the Kaggle API (`kaggle/`), not a browser
+notebook. See `kaggle/README.md` for how, including the real environment
+gotchas hit doing it (GPU/PyTorch version mismatch, dataset-mount path
+differences, a Windows-only SDK bug).
 
 ## Quickstart — local smoke test (pipeline correctness only, no downloads)
 
@@ -87,56 +92,73 @@ python text_robustness.py --csv ../data_multimodal_smoke/train.csv --img-root ..
 Both pipelines have been run and verified working end-to-end, including a
 real BiomedCLIP load and inference (not mocked).
 
-## Quickstart — real training (Kaggle, recommended)
+## Quickstart — real full-scale training (Kaggle API)
 
-1. Upload this repo to GitHub (or upload `src/` as a Kaggle Dataset/utility script).
-2. Create a Kaggle Notebook, add the "Chest X-Ray Pneumonia" dataset (image-only
-   baseline) and/or "Chest X-rays (Indiana University)" dataset (multimodal).
-3. `notebooks/kaggle_baseline_training.ipynb` covers the image-only baseline end
-   to end. The IU X-Ray multimodal notebook is the next thing to build once the
-   real dataset has been inspected (see Status below).
-4. For the multimodal scripts: `python src/prepare_iuxray_csv.py ...`, then
-   `python src/retrieval_baseline.py ...` and `python src/text_robustness.py ...`
-   against the real data.
-5. Download `results/` from the notebook output and commit them to this repo.
+This is what actually produced everything in `results/` and the technical
+report. See `kaggle/README.md` for the full walkthrough and gotchas; short
+version:
+
+```bash
+# 1. Push src/ as a private Kaggle dataset
+cd src && kaggle datasets create -p .   # (needs a dataset-metadata.json; see kaggle/README.md)
+
+# 2. Push and run the full pipeline as a GPU kernel
+cd ../kaggle && kaggle kernels push -p .
+
+# 3. Poll status, then fetch output once complete
+kaggle kernels status <owner>/trustmed-vlm-full-run
+kaggle kernels output <owner>/trustmed-vlm-full-run -p out/   # or see kaggle/README.md for the
+                                                                 # Windows encoding-bug workaround
+```
 
 ## Status against the Project 1 stage gates
 
-- [x] Gate 0 (data feasibility): pneumonia loader done; IU X-Ray loader run
-      against real downloaded metadata (3,666 studies split by `uid`; see
-      `DATASET_DATASHEET.md`).
-- [x] Gate 1 (unimodal baseline): ResNet-18/DenseNet-121 trainer, calibration,
-      Grad-CAM — implemented, smoke-tested, and run on a real (if small,
-      240-study) IU X-Ray subsample locally; the full-scale Kaggle GPU run
-      (2,568 studies, 224px, DenseNet-121) is still pending and is what
-      should anchor the final reported numbers.
-- [x] Gate 2 (multimodal value): zero-shot BiomedCLIP retrieval, text-robustness,
-      and an image-only/text-only/fusion probe comparison all run for real
-      (`results/retrieval_metrics.json`, `results/text_robustness.json`,
-      `results/fusion_baseline.json`). Fusion technically beats the best
-      unimodal score (0.940 vs 0.937 AUROC) but the margin is within noise;
-      the real finding is text-only (0.937) far outperforming image-only
-      (0.653), which is the known label-leakage risk (label derived from
-      report text) showing up empirically rather than a genuine multimodal
-      win — see `reports/technical_report.md` Section 7 for the full,
-      deliberately unflattering discussion.
-- [x] Gate 3 (trustworthy evaluation, small-scale): calibration/ECE,
-      cross-dataset shift, shortcut probe, and MC-dropout uncertainty/abstention
-      all run for real (see `reports/technical_report.md` Section 5 and
-      `MODEL_CARD.md`). Headline findings: AUROC survives the pneumonia shift
-      but calibration degrades sharply (ECE 0.094→0.263); a linear probe
-      separates the two datasets' learned features perfectly (AUROC 1.0,
-      real shortcut-learning signal); MC-dropout uncertainty did not
-      outperform random abstention at this scale (honest null result). All
-      of this needs re-running against the full-scale checkpoint once it exists.
-- [x] Error analysis (small-scale): real per-example predictions inspected
-      against report text (`results/error_analysis_predictions.csv`). False
-      negatives cluster around subtle/chronic findings (calcifications,
-      granulomas, mild changes); false positives cluster around images with
-      postsurgical hardware/visually salient-but-non-diagnostic content —
-      see `reports/technical_report.md` Section 8.
-- [ ] Gate 4 (supervisor-ready): technical report and model card are filled in
-      with real small-scale results, including error analysis; the one
-      remaining piece is the full-scale Kaggle training run (deliberately
-      saved for last) and re-running every Gate 3 + error-analysis check
-      against it, then a final polish pass.
+All gates below reflect the **full-scale** run (2,568/549/549-study real IU
+X-Ray split, DenseNet-121, 224px, Kaggle GPU) unless noted. An earlier
+small-scale pass (240/80/80 studies, local CPU) validated the pipeline
+first; see `reports/technical_report.md` for the full small-scale-vs-
+full-scale comparison — several results changed meaningfully at scale, most
+notably MC-dropout uncertainty (null → clearly informative) and the fusion
+verdict (nominal small-scale "win" → full-scale loss, confirming that "win"
+was noise).
+
+- [x] **Gate 0** (data feasibility): both datasets loaded from real
+      downloaded data — IU X-Ray (3,666 studies split by `uid`) and
+      Pneumonia. See `DATASET_DATASHEET.md`.
+- [x] **Gate 1** (unimodal baseline): full-scale DenseNet-121 — test AUROC
+      0.792, AUPRC 0.865, ECE 0.052→0.040 after calibration. All improved
+      over the small-scale pipeline-check numbers (0.749/0.810/0.094).
+- [x] **Gate 2** (multimodal value): zero-shot BiomedCLIP retrieval (full
+      549-study test set, several times chance level), text-robustness
+      (collapses toward chance under empty/mismatched text — the model
+      genuinely depends on report content), and an image-only/text-only/
+      fusion probe comparison. **At full scale, fusion does not beat
+      text-only** (0.955 vs 0.957 AUROC) — the small-scale run's nominal
+      "win" (0.940 vs 0.937) was noise, exactly as flagged at the time. The
+      dominant finding remains text-only (0.957) far outperforming
+      image-only (0.752), which strengthens rather than weakens the
+      label-leakage explanation (the gap *widened* with more data, which
+      leakage explains and genuine signal doesn't) — see
+      `reports/technical_report.md` Section 7.
+- [x] **Gate 3** (trustworthy evaluation): calibration/ECE, cross-dataset
+      shift, shortcut probe, and MC-dropout uncertainty/abstention all run
+      at full scale. AUROC survives the pneumonia shift (0.792→0.833) but
+      calibration degrades (ECE 0.040→0.131); a linear probe separates the
+      two datasets' learned features almost perfectly (AUROC 0.9997 on
+      7,016 combined real images — confirms the small-scale perfect score
+      wasn't a fluke); MC-dropout uncertainty **reverses** the small-scale
+      null result — at full scale it's clearly informative (uncertainty-
+      ordered abstention roughly halves risk vs. random). See
+      `reports/technical_report.md` Section 5 and `MODEL_CARD.md`.
+- [x] **Error analysis**: full 549-study test set, with a systematic
+      keyword check (not just eyeballing the most-confident cases) across
+      every FP/FN — which showed the small-scale qualitative narrative
+      ("FN=subtle chronic findings, FP=postsurgical hardware") was
+      real-but-overstated: both patterns are still visible but explain a
+      minority of cases at full scale. Reported as a methodological lesson,
+      not quietly dropped — see `reports/technical_report.md` Section 8.
+- [x] **Gate 4** (supervisor-ready): technical report and model card now
+      hold real full-scale results throughout, including where full-scale
+      numbers reversed or confirmed small-scale ones. Remaining before this
+      is fully "done": a genuine (non-leaky-label) multimodal fusion test,
+      repeated-seed confidence intervals, and a final read-through polish.

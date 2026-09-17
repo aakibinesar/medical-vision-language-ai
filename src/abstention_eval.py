@@ -61,9 +61,16 @@ def main():
     curve_random = risk_coverage_curve(y_true, y_pred, random_order_score, coverages)
 
     def auc_risk(curve):
-        covs = [r["coverage"] for r in curve]
-        risks = [r["risk"] for r in curve]
-        return float(np.trapezoid(risks[::-1], covs[::-1]))
+        # Manual trapezoidal rule - avoids relying on np.trapz (removed in
+        # numpy 2.0) vs np.trapezoid (added in numpy 2.0, absent before),
+        # which differ depending on which numpy is installed (e.g. this
+        # repo's local venv vs. Kaggle's preinstalled version).
+        covs = [r["coverage"] for r in curve][::-1]
+        risks = [r["risk"] for r in curve][::-1]
+        area = 0.0
+        for i in range(1, len(covs)):
+            area += (risks[i] + risks[i - 1]) / 2 * (covs[i] - covs[i - 1])
+        return float(area)
 
     summary = {
         "full_coverage_accuracy": float((y_pred == y_true).mean()),

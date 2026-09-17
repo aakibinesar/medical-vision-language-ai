@@ -97,17 +97,20 @@ real BiomedCLIP load and inference (not mocked).
 ## Quickstart — real full-scale training (Kaggle API)
 
 This is what actually produced everything in `results/` and the technical
-report. Two kernels — `kaggle/full-run/` (training + Gate 3 + error
-analysis) and `kaggle/fusion-retrieval/` (the genuine fusion test). See
-`kaggle/README.md` for the full walkthrough and gotchas; short version:
+report. Three kernels — `kaggle/full-run/` (training + Gate 3 + error
+analysis), `kaggle/fusion-retrieval/` (the genuine fusion test, multi-seed
+capable), and `kaggle/seed-repeats/` (repeated-seed CNN training for the
+Gate 1 confidence interval). See `kaggle/README.md` for the full
+walkthrough and gotchas; short version:
 
 ```bash
-# 1. Push src/ as a private Kaggle dataset (shared by both kernels)
+# 1. Push src/ as a private Kaggle dataset (shared by all three kernels)
 cd src && kaggle datasets create -p .   # (needs a dataset-metadata.json; see kaggle/README.md)
 
-# 2. Push and run either pipeline as a GPU kernel
-cd ../kaggle/full-run && kaggle kernels push -p .            # training + Gate 3 + error analysis
-cd ../fusion-retrieval && kaggle kernels push -p .            # genuine fusion test
+# 2. Push and run whichever pipeline(s) you need as a GPU kernel
+cd ../kaggle/full-run && kaggle kernels push -p .          # training + Gate 3 + error analysis
+cd ../fusion-retrieval && kaggle kernels push -p .         # genuine fusion test
+cd ../seed-repeats && kaggle kernels push -p .             # 2 more CNN seeds for Gate 1 CI
 
 # 3. Poll status, then fetch output once complete
 kaggle kernels status <owner>/trustmed-vlm-full-run
@@ -134,8 +137,9 @@ was noise).
       improved over the small-scale pipeline-check numbers (0.749/0.810/0.094).
       **Repeated-seed check (n=3):** AUROC 0.784±0.010 and AUPRC 0.864±0.004
       are tight and reliable; **ECE after calibration is actually 0.080±0.045
-      — the reported 0.040 was the best of three seeds, not typical**, and
-      the best-AUROC seed had the worst calibration. See
+      — the reported 0.040 was the best of three seeds, not typical**
+      (0.040/0.071/0.130 per seed) — no clean trade-off with AUROC, just
+      much higher seed variance in calibration than discrimination. See
       `results/metrics_seed_ci.json` and `reports/technical_report.md`
       Section 4.
 - [x] **Gate 2** (multimodal value) — **met, via the unconfounded test**:
@@ -177,6 +181,12 @@ was noise).
       repeated-seed confidence intervals (n=3) for both headline results —
       which caught a real issue (calibration is far less seed-stable than
       discrimination; the reported ECE was a best-case draw, now corrected
-      to 0.080±0.045). Remaining: a final read-through polish, and
-      optionally extending seed repeats to the Gate 3 diagnostics, which
-      are still single-run.
+      to 0.080±0.045, and a first draft of that correction incorrectly
+      claimed a clean discrimination-vs-calibration trade-off across seeds
+      that the raw numbers don't actually support — also corrected). Final
+      polish pass done: wrote the previously-unfilled Motivation section,
+      added a "Key findings at a glance" summary to the technical report,
+      fixed stale cross-references, added `.gitattributes` and `LICENSE`
+      (MIT, code only — not the datasets), removed an unused dependency.
+      Optionally still open: extending seed repeats to the Gate 3
+      diagnostics, which remain single-run.

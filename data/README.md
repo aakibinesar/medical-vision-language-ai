@@ -16,9 +16,11 @@ with different roles:
 Source: NIH NLM Open-i (https://openi.nlm.nih.gov/), mirrored on Kaggle as
 [`raddar/chest-xrays-indiana-university`](https://www.kaggle.com/datasets/raddar/chest-xrays-indiana-university).
 ~7,470 frontal/lateral chest X-rays with free-text radiology reports (findings +
-impression). Check the Kaggle page's license field before any redistribution.
+impression). **License: CC BY-NC-ND 4.0** (verified on the Kaggle listing —
+see `DATASET_DATASHEET.md`) — NoDerivatives means modified/processed images
+(Grad-CAM overlays, crops, etc.) should not be published publicly.
 
-**Getting the data (same pattern as before):**
+**Getting the data:**
 1. Kaggle Notebook: add "Chest X-rays (Indiana University)" via *Add Input*; it
    appears at `/kaggle/input/chest-xrays-indiana-university/`.
 2. Local: `kaggle datasets download -d raddar/chest-xrays-indiana-university -p data --unzip`,
@@ -39,10 +41,15 @@ label is "weak" and must be treated as noisy, not ground truth).
 
 ## Secondary dataset: Chest X-Ray Pneumonia (cross-dataset shift test)
 
-Same as before — see the earlier section of this file's git history, or
-`src/prepare_csv.py`. Its role changed: it's no longer the primary dataset,
-it's the held-out generalisation check (different hospital, different label
-scheme, no report text) for whatever is trained on IU X-Ray.
+Source: [`paultimothymooney/chest-xray-pneumonia`](https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia)
+(Kermany et al. 2018, CC BY 4.0). Download in full (~2.3GB, small enough
+not to need subsampling): `kaggle datasets download -d paultimothymooney/chest-xray-pneumonia -p data --unzip`,
+then `python src/prepare_csv.py --data-root data/chest_xray --out-dir data`.
+Its role here isn't to be the primary dataset — it's the held-out
+generalisation check (different hospital, different label scheme, no
+report text) for the classifier trained on IU X-Ray, used by `shift_eval.py`
+and `shortcut_probe.py`. See `DATASET_DATASHEET.md` for full details
+including the known image-wise (not patient-wise) split limitation.
 
 ## Planned upgrade: MIMIC-CXR
 

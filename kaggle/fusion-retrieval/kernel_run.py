@@ -66,7 +66,8 @@ run("contrastive_projection", [
     "contrastive_projection.py",
     "--train-csv", "data_iuxray/train.csv", "--val-csv", "data_iuxray/val.csv",
     "--test-csv", "data_iuxray/test.csv", "--img-root", IU_IMG_ROOT,
-    "--epochs", "200", "--proj-dim", "256", "--outdir", "results_full",
+    "--epochs", "200", "--proj-dim", "256", "--seeds", "42", "43", "44",
+    "--outdir", "results_full",
 ])
 
 with open(os.path.join(WORK, "pipeline_status.json"), "w") as f:

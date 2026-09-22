@@ -34,9 +34,16 @@ the reliability/robustness comparison itself.
   (null result), genuinely informative at full scale — uncertainty-ordered
   abstention roughly halves risk vs. random (Section 5).
 - **A near-perfect shortcut signal exists**: a linear probe tells IU X-Ray
-  and Pneumonia images apart with AUROC 0.9997 from frozen features alone
-  (Section 5), and one Grad-CAM example shows the model attending to an
-  image annotation marker rather than anatomy (Section 6).
+  and Pneumonia images apart with AUROC 0.99995 from frozen features alone
+  (Section 5), and one Grad-CAM example shows the model attending to image
+  annotation markers rather than anatomy — a pattern that changed shape but
+  didn't disappear after the augmentation fix above (Section 6).
+- **Fine-tuning the backbone doesn't beat frozen projection heads.**
+  Unfreezing BiomedCLIP's last 2 transformer blocks, on top of the genuine
+  fusion win above, produces a textbook overfitting curve and a best
+  checkpoint that only ties the frozen-heads result — at roughly 500x the
+  compute cost (Section 7). A useful negative result: more trainable
+  capacity is not automatically better on ~2,568 real pairs.
 - **Small-scale qualitative read do not always survive full-scale
   scrutiny** — the clearest lesson of the whole project. This showed up at
   least three times: the fusion classification "win" (Section 7), the
@@ -388,6 +395,78 @@ to the roughly 2x effect size, and the zero-shot baseline sits well outside
 the trained mean's range for every single metric. This is a genuinely
 robust result, not a point estimate that happened to land well.
 
+### Does fine-tuning the backbone beat frozen heads?
+
+The result above only trains two small linear projection heads on a fully
+frozen BiomedCLIP backbone. The natural follow-up question: does letting
+the backbone itself adapt — not just the heads sitting on top of it — help
+further, or does adapting several million extra parameters on ~2,568 real
+pairs overfit instead? `contrastive_finetune.py` (`kaggle/fusion-finetune/`)
+answers this directly.
+
+**Method.** Unfreeze the last 2 transformer blocks of *both* BiomedCLIP
+towers (image ViT and text BERT), with a much smaller learning rate for the
+backbone (1e-6) than the projection heads (1e-3) — standard practice to
+avoid destroying pretrained representations in a few noisy steps. Unlike
+the frozen approach, embeddings can't be extracted once and cached (the
+backbone changes every step), so this trains in mini-batches over raw
+images/text rather than one full-batch step per epoch, and each seed resets
+the backbone to its original pretrained weights before fine-tuning again.
+
+**First attempt (12 epochs, batch 64) was inconclusive, not negative.**
+Training loss was still dropping steadily with no plateau, and validation
+Recall@1 hadn't settled into a clear trend — 12 epochs wasn't enough
+runway to know whether fine-tuning would help, hurt, or wash out.
+
+**Extended run (40 epochs, batch 128, seed 42) gave a clear, if unwanted,
+answer.** Training loss fell smoothly and monotonically the entire
+run (4.59 → 2.32), but validation Recall@1 peaked at **epoch 6 of 40**
+(0.0346) and never recovered — next-best was 0.0291 at epoch 12, and most
+later epochs sat in the 0.014-0.024 range. This is the textbook signature
+of overfitting: the model keeps fitting the training pairs more precisely
+while generalization to held-out pairs gets no better, and mostly worse.
+
+**Even the best (epoch-6, early-stopped) checkpoint only ties the frozen
+result:**
+
+| Metric | Frozen heads-only (3-seed mean) | Fine-tuned (1 seed, best checkpoint) |
+|---|---|---|
+| image→text Recall@1 | 1.76% ± 0.46% | 2.00% |
+| image→text Recall@5 | 7.41% ± 0.42% | 7.47% |
+| image→text Recall@10 | 12.26% ± 0.92% | 10.75% |
+| text→image Recall@1 | 2.06% ± 0.76% | 1.64% |
+| text→image Recall@5 | 6.98% ± 0.42% | 6.38% |
+| text→image Recall@10 | 11.84% ± 1.09% | 11.29% |
+
+No metric shows a clear win for fine-tuning; two (image→text and
+text→image Recall@10) are modestly below the frozen mean. This comes at
+roughly 500x the compute cost of the frozen approach (~3.8 GPU-hours for
+one seed vs. a few minutes for 200 full-batch epochs on cached embeddings).
+
+**An honest confound, not just "it overfits."** The fine-tuned run's
+contrastive loss only ever discriminates each pair against the other
+examples in its mini-batch — 128 in-batch negatives per step. The frozen
+approach's full-batch training discriminates against all 2,568 training
+pairs *every* step. That's a substantially harder, more informative
+training signal, entirely independent of whether backbone adaptation
+itself is a good idea. This means the result above can't cleanly separate
+two explanations: (a) unfreezing the backbone overfits on data this size,
+or (b) the backbone was never given a training signal strong enough to
+exploit its extra capacity in the first place. The overfitting curve's
+shape (monotonic train-loss improvement, early-peaking validation) is real
+evidence for (a) regardless, but (b) remains an unaddressed, uncontrolled
+variable — a genuinely fair critique of this specific experiment, not
+resolved by the data collected so far.
+
+**Conclusion: keep the frozen, heads-only approach.** It is both cheaper
+and at least as good as backbone fine-tuning under this setup — a useful
+negative result in its own right, and evidence for a real design choice
+rather than an unexplored corner. A cleaner follow-up (not done here) would
+need a training signal that doesn't confound negative-pool size with
+backbone adaptation — e.g. a much larger mini-batch, a memory bank of past
+negatives, or gradient accumulation to approximate full-batch negatives
+while still updating the backbone.
+
 ## 8. Error analysis
 
 Per-example predictions for the full-scale image-only checkpoint (Section 4)
@@ -455,10 +534,14 @@ than either the most-confident extremes or fully automated keyword counts.
 - The full-scale error-analysis keyword check (Section 8) is a blunt
   instrument (naive string matching, no negation handling) — a genuine
   clinical read of a larger random sample would be more reliable.
-- The contrastive projection (Section 7) only trains small linear heads on
-  a fully frozen backbone — it doesn't establish how much further gains
-  might come from fine-tuning more of the network, just that even this
-  minimal training already helps.
+- Backbone fine-tuning (Section 7) was tried and didn't beat the frozen
+  heads-only approach, but the experiment has its own real confound: the
+  fine-tuned run's contrastive loss only ever saw 128 in-batch negatives
+  per step versus the frozen approach's full 2,568-pair negative pool, so
+  "backbone adaptation overfits" and "the training signal was too weak to
+  exploit the extra capacity" can't be cleanly distinguished from this data
+  alone. Single-seed, not extended to a repeated-seed CI, since the
+  overfitting curve's qualitative shape is unlikely to change across seeds.
 - Repeated-seed confidence intervals (n=3 seeds each) now exist for the
   Gate 1 classification headline numbers (Section 4), the contrastive
   projection fusion result (Section 7), and all four Gate 3 diagnostics —
@@ -489,9 +572,15 @@ than either the most-confident extremes or fully automated keyword counts.
 - ~~A genuine multimodal fusion test~~ — done (Section 7): contrastive
   projection heads on frozen BiomedCLIP embeddings, trained on real
   image-report pairs, roughly double Recall@5/@10 over zero-shot at full
-  scale. Natural next step: try fine-tuning more than just linear
-  projection heads (e.g. a small MLP, or unfreezing the last few backbone
-  layers) now that this establishes a real baseline worth improving on.
+  scale.
+- ~~Try fine-tuning more than just linear projection heads~~ — done
+  (Section 7): unfreezing the last 2 transformer blocks of both towers
+  overfits (validation Recall@1 peaks at epoch 6/40) and only ties the
+  frozen result at ~500x the compute cost. Natural extension, not done
+  here: rerun with a training signal that doesn't confound negative-pool
+  size with backbone adaptation (larger mini-batch, a negative memory bank,
+  or gradient accumulation), to isolate whether the overfitting verdict
+  holds once that confound is controlled for.
 - A systematic (not keyword-based) read of a larger random error sample,
   to properly characterize the FN/FP patterns hinted at in Section 8.
 - ~~Repeated-seed runs for confidence intervals on the headline numbers~~ —

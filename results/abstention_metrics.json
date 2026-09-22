@@ -1,61 +1,63 @@
 {
-  "full_coverage_accuracy": 0.6593806921675774,
-  "area_under_risk_coverage_uncertainty_ordered": 0.16966274778975848,
-  "area_under_risk_coverage_random_ordered": 0.3233739233457487,
+  "full_coverage_accuracy": 0.7049180327868853,
+  "area_under_risk_coverage_uncertainty_ordered": 0.15716377151539682,
+  "area_under_risk_coverage_random_ordered": 0.26441297718850837,
+  "area_under_risk_coverage_random_ordered_std": 0.012351666620372835,
+  "n_random_draws": 100,
   "curve_uncertainty_ordered": [
     {
       "coverage": 1.0,
       "n_answered": 549,
-      "accuracy": 0.6593806921675774,
-      "risk": 0.34061930783242256
+      "accuracy": 0.7049180327868853,
+      "risk": 0.29508196721311475
     },
     {
       "coverage": 0.9,
       "n_answered": 494,
-      "accuracy": 0.6902834008097166,
-      "risk": 0.3097165991902834
+      "accuracy": 0.7186234817813765,
+      "risk": 0.28137651821862353
     },
     {
       "coverage": 0.8,
       "n_answered": 439,
-      "accuracy": 0.7129840546697038,
-      "risk": 0.2870159453302962
+      "accuracy": 0.7494305239179955,
+      "risk": 0.2505694760820045
     },
     {
       "coverage": 0.7,
       "n_answered": 384,
-      "accuracy": 0.7473958333333334,
-      "risk": 0.25260416666666663
+      "accuracy": 0.7890625,
+      "risk": 0.2109375
     },
     {
       "coverage": 0.6,
       "n_answered": 329,
-      "accuracy": 0.7933130699088146,
-      "risk": 0.20668693009118544
+      "accuracy": 0.8054711246200608,
+      "risk": 0.19452887537993924
     },
     {
       "coverage": 0.5,
       "n_answered": 274,
-      "accuracy": 0.8357664233576643,
-      "risk": 0.16423357664233573
+      "accuracy": 0.8284671532846716,
+      "risk": 0.17153284671532842
     },
     {
       "coverage": 0.4,
       "n_answered": 220,
-      "accuracy": 0.8727272727272727,
-      "risk": 0.12727272727272732
+      "accuracy": 0.8636363636363636,
+      "risk": 0.13636363636363635
     },
     {
       "coverage": 0.3,
       "n_answered": 165,
-      "accuracy": 0.9212121212121213,
-      "risk": 0.07878787878787874
+      "accuracy": 0.9030303030303031,
+      "risk": 0.09696969696969693
     },
     {
       "coverage": 0.2,
       "n_answered": 110,
-      "accuracy": 0.9363636363636364,
-      "risk": 0.0636363636363636
+      "accuracy": 0.9545454545454546,
+      "risk": 0.045454545454545414
     },
     {
       "coverage": 0.1,
@@ -68,62 +70,62 @@
     {
       "coverage": 1.0,
       "n_answered": 549,
-      "accuracy": 0.6593806921675774,
-      "risk": 0.34061930783242256
+      "accuracy": 0.7049180327868849,
+      "risk": 0.2950819672131151
     },
     {
       "coverage": 0.9,
       "n_answered": 494,
-      "accuracy": 0.6578947368421053,
-      "risk": 0.3421052631578947
+      "accuracy": 0.7051821862348178,
+      "risk": 0.29481781376518224
     },
     {
       "coverage": 0.8,
       "n_answered": 439,
-      "accuracy": 0.6583143507972665,
-      "risk": 0.3416856492027335
+      "accuracy": 0.7054897494305237,
+      "risk": 0.29451025056947633
     },
     {
       "coverage": 0.7,
       "n_answered": 384,
-      "accuracy": 0.6380208333333334,
-      "risk": 0.36197916666666663
+      "accuracy": 0.7054427083333333,
+      "risk": 0.29455729166666667
     },
     {
       "coverage": 0.6,
       "n_answered": 329,
-      "accuracy": 0.6322188449848024,
-      "risk": 0.3677811550151976
+      "accuracy": 0.7060790273556232,
+      "risk": 0.2939209726443768
     },
     {
       "coverage": 0.5,
       "n_answered": 274,
-      "accuracy": 0.6167883211678832,
-      "risk": 0.3832116788321168
+      "accuracy": 0.7056569343065694,
+      "risk": 0.2943430656934306
     },
     {
       "coverage": 0.4,
       "n_answered": 220,
-      "accuracy": 0.6181818181818182,
-      "risk": 0.38181818181818183
+      "accuracy": 0.7077727272727273,
+      "risk": 0.29222727272727267
     },
     {
       "coverage": 0.3,
       "n_answered": 165,
-      "accuracy": 0.6242424242424243,
-      "risk": 0.37575757575757573
+      "accuracy": 0.7073333333333335,
+      "risk": 0.2926666666666665
     },
     {
       "coverage": 0.2,
       "n_answered": 110,
-      "accuracy": 0.6454545454545455,
-      "risk": 0.3545454545454545
+      "accuracy": 0.7072727272727272,
+      "risk": 0.29272727272727284
     },
     {
       "coverage": 0.1,
       "n_answered": 55,
-      "accuracy": 0.6909090909090909,
-      "risk": 0.3090909090909091
+      "accuracy": 0.7063636363636364,
+      "risk": 0.2936363636363636
     }
   ],
   "interpretation": "Lower area-under-risk-coverage is better. The uncertainty-ordered curve should score lower than the random-ordered one if the MC-dropout uncertainty is actually informative about correctness."

@@ -2,13 +2,8 @@
   "source_label": "Abnormal",
   "target_label": "Pneumonia",
   "n_examples": 624,
-  "auroc": 0.8325772518080211,
-  "auprc": 0.8794148539534992,
-  "ece": 0.13096180830437404,
-  "mean_predicted_prob": 0.725344717502594,
-  "in_distribution_comparison": {
-    "auroc_macro": 0.7921015314804312,
-    "auprc_macro": 0.8650137035872036,
-    "ece_after_calibration": 0.03991902348176595
-  }
+  "auroc": 0.8470962086346703,
+  "auprc": 0.9023914448251624,
+  "ece": 0.08282285045163754,
+  "mean_predicted_prob": 0.6024146676063538
 }

@@ -2,9 +2,9 @@
   "label": "Abnormal",
   "n_samples": 20,
   "n_examples": 549,
-  "mean_predictive_std": 0.03491373732686043,
+  "mean_predictive_std": 0.040077049285173416,
   "std_correct_vs_incorrect": {
-    "correct_pred_mean_std": 0.02868926338851452,
-    "incorrect_pred_mean_std": 0.04696326702833176
+    "correct_pred_mean_std": 0.03548179566860199,
+    "incorrect_pred_mean_std": 0.05105460062623024
   }
 }

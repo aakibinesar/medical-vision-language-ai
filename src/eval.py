@@ -121,7 +121,8 @@ def main():
     for (i, j), v in np.ndenumerate(cm):
         ax.text(j, i, str(v), ha="center", va="center")
     ax.set_xticks([0, 1]); ax.set_yticks([0, 1])
-    ax.set_xticklabels(["Normal", "Pneumonia"]); ax.set_yticklabels(["Normal", "Pneumonia"])
+    class_labels = ["Normal", label_columns[0]]
+    ax.set_xticklabels(class_labels); ax.set_yticklabels(class_labels)
     ax.set_xlabel("Predicted"); ax.set_ylabel("True")
     ax.set_title(f"Confusion matrix ({label_columns[0]})")
     fig.tight_layout()

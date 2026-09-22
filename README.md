@@ -130,17 +130,28 @@ notably MC-dropout uncertainty (null → clearly informative) and the fusion
 verdict (nominal small-scale "win" → full-scale loss, confirming that "win"
 was noise).
 
+**Mid-project pipeline audit and fix:** a full pass over every script found
+and fixed three real issues — a training-time `RandomHorizontalFlip`
+inappropriate for chest X-rays (plausibly the cause of a Grad-CAM overlay
+fixating on an "L" laterality marker), a hard-coded confusion-matrix label
+bug, and an unseeded single-draw random-abstention baseline. All checkpoints
+and Gate 1/Gate 3 results below were fully retrained/rerun after the fix;
+see `MODEL_CARD.md`'s pipeline-fix note and `kaggle/no-flip-full-ci/` for
+details.
+
 - [x] **Gate 0** (data feasibility): both datasets loaded from real
       downloaded data — IU X-Ray (3,666 studies split by `uid`) and
       Pneumonia. See `DATASET_DATASHEET.md`.
 - [x] **Gate 1** (unimodal baseline): full-scale DenseNet-121 — test AUROC
-      0.792, AUPRC 0.865, ECE 0.052→0.040 after calibration (seed 42). All
-      improved over the small-scale pipeline-check numbers (0.749/0.810/0.094).
-      **Repeated-seed check (n=3):** AUROC 0.784±0.010 and AUPRC 0.864±0.004
-      are tight and reliable; **ECE after calibration is actually 0.080±0.045
-      — the reported 0.040 was the best of three seeds, not typical**
-      (0.040/0.071/0.130 per seed) — no clean trade-off with AUROC, just
-      much higher seed variance in calibration than discrimination. See
+      0.785, AUPRC 0.859, ECE 0.069→0.071 after calibration (seed 42, no-flip
+      pipeline). Essentially unchanged from the original with-flip run
+      (0.792/0.865/0.040) within seed-to-seed noise.
+      **Repeated-seed check (n=3):** AUROC 0.772±0.011 and AUPRC 0.855±0.008
+      remain tight; **ECE after calibration is 0.072±0.022 — a similar mean
+      to the with-flip run (0.080±0.045) but with roughly half the
+      seed-to-seed spread** (0.071/0.095/0.051 per seed vs. the old
+      0.040/0.071/0.130) — removing the flip made calibration more
+      seed-stable, not just fixed an interpretability issue. See
       `results/metrics_seed_ci.json` and `reports/technical_report.md`
       Section 4.
 - [x] **Gate 2** (multimodal value) — **met, via the unconfounded test**:
@@ -162,19 +173,20 @@ was noise).
       `reports/technical_report.md` Section 7.
 - [x] **Gate 3** (trustworthy evaluation): calibration/ECE, cross-dataset
       shift, shortcut probe, and MC-dropout uncertainty/abstention all run
-      at full scale. AUROC survives the pneumonia shift (0.792→0.833) but
-      calibration degrades (ECE 0.040→0.131); a linear probe separates the
-      two datasets' learned features almost perfectly (AUROC 0.9997 on
-      7,016 combined real images — confirms the small-scale perfect score
-      wasn't a fluke); MC-dropout uncertainty **reverses** the small-scale
-      null result — at full scale it's clearly informative (uncertainty-
-      ordered abstention roughly halves risk vs. random).
-      **Repeated-seed check (n=3, `results/gate3_seed_ci.json`): every one
-      of these findings held up cleanly** — no corrections needed here,
-      unlike Gate 1's calibration number. Shortcut probe AUROC is
-      essentially seed-invariant (0.9998±0.0001); MC-dropout's correct-vs-
-      incorrect std gap and abstention's uncertainty-vs-random gap both
-      hold with no overlap across all three seeds. See
+      at full scale on the no-flip pipeline. AUROC survives the pneumonia
+      shift (0.785→0.847) and calibration degrades more modestly than
+      before (ECE 0.071→0.083, versus a near-tripling pre-fix); a linear
+      probe separates the two datasets' learned features almost perfectly
+      (AUROC 0.99995 on 7,016 combined real images, unaffected by the fix as
+      expected); MC-dropout uncertainty is clearly informative (uncertainty-
+      ordered abstention risk 0.157 vs. 0.264 random-ordered, the latter now
+      averaged over 100 permutations rather than one arbitrary draw).
+      **Repeated-seed check (n=3, `results/gate3_seed_ci.json`): every
+      finding held up again after the fix, and calibration got tighter**:
+      shift ECE 0.086±0.014 (down from 0.117±0.026 pre-fix); shortcut probe
+      AUROC essentially seed-invariant (0.99992±0.00003); MC-dropout's
+      correct-vs-incorrect std gap and abstention's uncertainty-vs-random
+      gap both hold with no overlap across all three seeds. See
       `reports/technical_report.md` Section 5 and `MODEL_CARD.md`.
 - [x] **Error analysis**: full 549-study test set, with a systematic
       keyword check (not just eyeballing the most-confident cases) across
@@ -188,10 +200,14 @@ was noise).
       fusion test, and repeated-seed confidence intervals (n=3) for every
       headline number and all four Gate 3 diagnostics. The classification
       CI caught a real issue (calibration is far less seed-stable than
-      discrimination; the reported ECE was a best-case draw, now corrected
-      to 0.080±0.045); the Gate 3 CI, by contrast, confirmed every finding
-      held up with nothing to correct. Final polish pass done: wrote the
-      previously-unfilled Motivation section, added a "Key findings at a
-      glance" summary to the technical report, fixed stale
-      cross-references, added `.gitattributes` and `LICENSE` (MIT, code
-      only — not the datasets), removed an unused dependency.
+      discrimination; the reported single-seed ECE was a best-case draw);
+      the Gate 3 CI, by contrast, confirmed every finding held up with
+      nothing to correct. Final polish pass done: wrote the previously-
+      unfilled Motivation section, added a "Key findings at a glance"
+      summary to the technical report, fixed stale cross-references, added
+      `.gitattributes` and `LICENSE` (MIT, code only — not the datasets),
+      removed an unused dependency. A later full pipeline audit found and
+      fixed three real issues (inappropriate training augmentation, a
+      confusion-matrix labeling bug, an unseeded abstention baseline) and
+      every checkpoint/result above was fully retrained/rerun afterward —
+      see the pipeline-fix note above and in `MODEL_CARD.md`.

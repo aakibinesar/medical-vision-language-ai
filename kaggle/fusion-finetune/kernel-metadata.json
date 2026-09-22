@@ -1,0 +1,16 @@
+{
+  "id": "aakibinesar/trustmed-vlm-fusion-finetune",
+  "title": "trustmed-vlm-fusion-finetune",
+  "code_file": "kernel_run.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [
+    "aakibinesar/trustmed-vlm-src",
+    "raddar/chest-xrays-indiana-university"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

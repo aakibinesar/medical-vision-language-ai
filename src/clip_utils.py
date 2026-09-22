@@ -53,3 +53,48 @@ def load_pairs(csv_path):
     assert "path" in df.columns and "report_text" in df.columns, \
         "CSV must have 'path' and 'report_text' columns (see prepare_iuxray_csv.py)"
     return df
+
+
+def freeze_all(model):
+    for p in model.parameters():
+        p.requires_grad_(False)
+
+
+def unfreeze_last_layers(model, n_layers):
+    """Freeze everything, then unfreeze the last n_layers transformer blocks
+    of BOTH towers plus their final projections. n_layers=0 leaves the whole
+    model frozen. BiomedCLIP-specific: assumes open_clip's CustomTextCLIP
+    with a timm ViT visual trunk (`visual.trunk.blocks`) and an HF BERT text
+    tower (`text.transformer.encoder.layer`) - true for
+    hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224, the
+    only model this project actually uses.
+    """
+    freeze_all(model)
+    if n_layers <= 0:
+        return
+    for block in model.visual.trunk.blocks[-n_layers:]:
+        block.requires_grad_(True)
+    model.visual.trunk.norm.requires_grad_(True)
+    model.visual.head.requires_grad_(True)
+
+    for layer in model.text.transformer.encoder.layer[-n_layers:]:
+        layer.requires_grad_(True)
+    model.text.proj.requires_grad_(True)
+
+
+def encode_images_batch(model, preprocess, img_root, paths, device):
+    """Encode one batch of images without forcing no_grad - used during
+    backbone fine-tuning, where the caller needs gradients to flow into
+    whichever layers have requires_grad=True. embed_images() above stays the
+    always-frozen path used everywhere else (zero-shot, validation, test)."""
+    img_root = Path(img_root)
+    imgs = torch.stack([preprocess(Image.open(img_root / p).convert("RGB")) for p in paths])
+    feats = model.encode_image(imgs.to(device))
+    return feats / feats.norm(dim=-1, keepdim=True)
+
+
+def encode_texts_batch(model, tokenizer, texts, device, context_length=256):
+    """Text counterpart to encode_images_batch() - see its docstring."""
+    tokens = tokenizer(texts, context_length=context_length).to(device)
+    feats = model.encode_text(tokens)
+    return feats / feats.norm(dim=-1, keepdim=True)

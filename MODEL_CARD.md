@@ -185,11 +185,16 @@ verdict (nominal small-scale "win" → full-scale loss). Full numbers:
   fusion beat a leaky text baseline" (no, at full scale). The retrieval-
   based contrastive projection test above is the clean answer instead, and
   it's positive.
-- The contrastive projection only trains small linear heads on top of a
-  fully frozen backbone — it doesn't establish how much further gains
-  might come from fine-tuning more of the network (a small MLP head, or
-  unfreezing late backbone layers), just that even this minimal amount of
-  training on real pairs already helps.
+- Backbone fine-tuning (unfreezing the last 2 transformer blocks of both
+  towers, `contrastive_finetune.py`) was tried and didn't beat the frozen
+  heads-only approach — a 40-epoch run shows a textbook overfitting curve
+  (validation Recall@1 peaks at epoch 6, never recovers) and the best
+  checkpoint only ties the frozen result at ~500x the compute cost. The
+  experiment has its own confound though: it only ever trained against 128
+  in-batch negatives per step versus the frozen approach's full 2,568-pair
+  negative pool, so "backbone adaptation overfits" and "the training signal
+  was too weak" can't be cleanly separated from this result alone. See
+  `reports/technical_report.md` Section 7.
 - The shortcut probe shows the representations encode acquisition source
   almost perfectly; this doesn't by itself prove the classifier's
   predictions depend on it, only that the information is present and usable.

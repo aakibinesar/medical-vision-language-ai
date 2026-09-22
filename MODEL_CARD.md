@@ -12,6 +12,24 @@ transfer learning, single logit + BCEWithLogitsLoss. Trained on IU X-Ray
 (primary) and separately evaluated on the Chest X-Ray Pneumonia set as a
 cross-dataset distribution-shift check.
 
+**Note on a mid-project pipeline fix.** All numbers below reflect a corrected
+training pipeline: `dataset.py`'s training augmentation originally included
+`RandomHorizontalFlip`, which is inappropriate for chest X-rays (anatomy
+isn't left-right symmetric, and flipping mirrors embedded laterality
+markers into nonsense) — plausibly why Grad-CAM was found attending to an
+"L" marker in one case. Removing it and fully retraining every checkpoint
+changed classification performance only within existing seed-to-seed noise,
+*improved* calibration stability (seed-to-seed ECE std roughly halved, both
+in- and out-of-distribution), and changed that specific Grad-CAM case from a
+sharp asymmetric fixation on the "L" marker to broader symmetric attention
+across both shoulder corners — a real change in behavior, not a clean fix
+(the model still isn't attending to lung tissue there). A hard-coded
+confusion-matrix labeling bug (always showed "Pneumonia" even for the
+`Abnormal` label) and an unseeded, single-draw random-abstention baseline
+(now averaged over 100 draws) were fixed at the same time. See
+`kaggle/recheck-augmentation/`, `kaggle/recheck-gradcam-single/`, and
+`kaggle/no-flip-full-ci/` for the full recheck.
+
 **Multimodal baseline.** [BiomedCLIP](https://huggingface.co/microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224)
 (PubMedBERT text tower + ViT-B/16 image tower, pretrained on PubMed Central
 image-text pairs), used three ways: zero-shot for image<->report retrieval;
@@ -79,20 +97,25 @@ verdict (nominal small-scale "win" → full-scale loss). Full numbers:
 `results/mc_dropout_summary.json`, `results/abstention_metrics.json`.
 
 - **Distribution shift** (real Pneumonia test set, n=624): AUROC held up,
-  even improved (0.792 → 0.833), but ECE nearly tripled (0.040 → 0.131) —
+  even improved (0.785 → 0.847), and ECE degraded more modestly than the
+  original with-flip run (0.071 → 0.083, versus a near-tripling before) —
   discrimination survives distribution shift better than calibration does,
-  replicating the small-scale finding at a larger, more reliable margin.
+  though the gap is smaller and steadier now that training-time noise from
+  the flip is gone.
 - **Shortcut probe** (7,016 combined real images, 10x the small-scale n):
   a linear probe on frozen features separates IU X-Ray from Pneumonia
-  images with AUROC = 0.9997, accuracy 99.8% (vs. 63.4% majority baseline)
+  images with AUROC = 0.99995, accuracy 99.6% (vs. 63.4% majority baseline)
   — confirms the small-scale perfect-separability finding was not a
-  tiny-sample fluke.
+  tiny-sample fluke, and is unaffected by the augmentation fix (as expected,
+  since it probes representations, not augmentation-sensitive predictions).
 - **MC-dropout uncertainty + abstention — reversed from small scale**: at
   full scale, predictive std is clearly higher for incorrect predictions
-  (0.047) than correct ones (0.029), and uncertainty-ordered abstention
-  roughly halves risk vs. random-order abstention (0.170 vs 0.323
-  area-under-risk-coverage). The small-scale null result was an artifact of
-  too little training data, not a real property of the method.
+  (0.051) than correct ones (0.035), and uncertainty-ordered abstention
+  performs well below random-order abstention (0.157 vs 0.264
+  area-under-risk-coverage, the latter now averaged over 100 random
+  permutations rather than one arbitrary draw). The small-scale null result
+  was an artifact of too little training data, not a real property of the
+  method.
 - **Fusion baseline (classification, confounded)** (image-only 0.752 vs.
   text-only 0.957 vs. fusion 0.955 AUROC): fusion does **not** beat
   text-only at full scale — this reverses the small-scale pass's nominal
@@ -107,36 +130,42 @@ verdict (nominal small-scale "win" → full-scale loss). Full numbers:
   at epoch 28/200, well before the loss-minimizing late epochs) rather than
   a small-sample fluke — this is the project's cleanest piece of positive
   multimodal evidence. `results/contrastive_projection.json`.
-- **Grad-CAM**: one overlay's hottest region centers on an "L" laterality
-  marker rather than lung tissue — a concrete, visible instance of the kind
-  of shortcut the probe above found abstractly. Not a systematic finding by
-  itself (one image), but a good, precise follow-up target.
+- **Grad-CAM**: after removing `RandomHorizontalFlip` (see note above), the
+  one overlay that previously showed a sharp, asymmetric hotspot centered on
+  an "L" laterality marker now shows broader, symmetric attention across
+  both shoulder corners instead — a real change in behavior, though not a
+  clean fix: the model still isn't attending to lung tissue on this image,
+  it just stopped uniquely fixating on one letter. A concrete, visible
+  instance of the kind of shortcut the probe above found abstractly.
 
 ## Repeated-seed confidence intervals (n=3: seeds 42/43/44)
 
-- **Classification (`results/metrics_seed_ci.json`)**: AUROC 0.784 ± 0.010
-  and AUPRC 0.864 ± 0.004 are tight and reliable. **ECE after calibration
-  is 0.080 ± 0.045 — the originally-reported 0.040 was the best of three
-  seeds, not typical** (per-seed ECE: 0.040 / 0.071 / 0.130). No clean
-  discrimination-vs-calibration trade-off across seeds — the best-AUROC
-  seed (42) also has the best calibration — just much higher seed-to-seed
-  variance in calibration than in AUROC/AUPRC. Report 0.080 ± 0.045 as the
-  honest calibration number going forward, not 0.040.
+- **Classification (`results/metrics_seed_ci.json`)**: AUROC 0.772 ± 0.011
+  and AUPRC 0.855 ± 0.008 are tight and essentially unchanged from the
+  with-flip run (0.784 ± 0.010 / 0.864 ± 0.004) — within combined noise.
+  **ECE after calibration is now 0.072 ± 0.022 — both a similar mean and a
+  notably tighter spread than the with-flip run's 0.080 ± 0.045** (per-seed
+  ECE: 0.071 / 0.095 / 0.051, vs. the old 0.040 / 0.071 / 0.130). Removing
+  the flip didn't just fix a labeling/interpretability issue — it made
+  calibration itself more seed-stable.
 - **Contrastive projection fusion (`results/contrastive_projection.json`)**:
+  unaffected by this fix (BiomedCLIP-based, not the CNN classifier) —
   confirmed robust — e.g. image→text Recall@5 7.41% ± 0.42% (trained) vs.
   3.64% (zero-shot, deterministic); the zero-shot baseline sits well
   outside the trained mean's range on every metric.
 - **All four Gate 3 diagnostics (`results/gate3_seed_ci.json`) — every
-  finding held up, nothing needed correcting this time**: shift AUROC
-  0.864±0.036 (always above each seed's own in-distribution AUROC), shift
-  ECE 0.117±0.026 (always well above in-distribution); shortcut probe AUROC
-  0.9998±0.0001 (essentially seed-invariant — a property of the data, not
-  one trained model); MC-dropout std 0.037±0.008 (correct) vs.
-  0.050±0.004 (incorrect), no overlap across seeds; abstention AUC-risk
-  0.175±0.014 (uncertainty-ordered) vs. 0.293±0.033 (random-ordered),
-  again no overlap. Required training 2 more MC-dropout checkpoints
-  (seeds 43/44) since only seed 42's existed; shift/shortcut reused the
-  3 already-trained main checkpoints with no new training needed.
+  finding held up again after the fix, with calibration once more the
+  most-improved metric**: shift AUROC 0.863±0.022 (still above each seed's
+  own in-distribution AUROC, tighter than before); shift ECE 0.086±0.014
+  (down from 0.117±0.026, and much tighter); shortcut probe AUROC
+  0.99992±0.00003 (essentially seed-invariant, as expected - unaffected by
+  the fix); MC-dropout std 0.036±0.005 (correct) vs. 0.049±0.004
+  (incorrect), no overlap across seeds; abstention AUC-risk 0.166±0.008
+  (uncertainty-ordered) vs. 0.261±0.005 (random-ordered, now itself an
+  average over 100 permutations per seed rather than one arbitrary draw),
+  again no overlap. Required training 5 new checkpoints (dropout-42,
+  main/dropout-43, main/dropout-44) without the flip; the already-trained
+  no-flip seed-42 main checkpoint was reused rather than retrained.
 - The classification fusion baseline (already flagged as unreliable due to
   label leakage) and the full-scale error-analysis keyword check (already
   flagged as a blunt instrument) are still single-run against the seed-42
@@ -164,5 +193,6 @@ verdict (nominal small-scale "win" → full-scale loss). Full numbers:
 - The shortcut probe shows the representations encode acquisition source
   almost perfectly; this doesn't by itself prove the classifier's
   predictions depend on it, only that the information is present and usable.
-- Repeated-seed CI exists for the two headline results (n=3 each) but not
-  for the diagnostic Gate 3 evaluations, which remain single-run.
+- Repeated-seed CI now covers classification, contrastive fusion, and all
+  four Gate 3 diagnostics; only the classification fusion baseline and
+  error-analysis keyword check remain single-run (see above for why).

@@ -76,6 +76,10 @@ def main():
     ap.add_argument("--img-root", required=True)
     ap.add_argument("--checkpoint", required=True)
     ap.add_argument("--n-examples", type=int, default=6)
+    ap.add_argument("--include-path", nargs="*", default=None,
+                     help="Force these specific `path` values into the sample (e.g. to "
+                          "re-render a known example under a different checkpoint), on top "
+                          "of the usual random sample.")
     ap.add_argument("--out", default="results/gradcam_examples")
     args = ap.parse_args()
 
@@ -94,6 +98,9 @@ def main():
 
     full_df = pd.read_csv(args.csv)
     df = full_df.sample(n=min(args.n_examples, len(full_df)), random_state=42)
+    if args.include_path:
+        forced = full_df[full_df["path"].isin(args.include_path)]
+        df = pd.concat([df, forced]).drop_duplicates(subset="path")
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     img_root = Path(args.img_root)

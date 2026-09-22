@@ -9,10 +9,21 @@ the reliability/robustness comparison itself.
 
 ## Key findings at a glance
 
+- **A full pipeline audit caught three real bugs, including one with a
+  physical explanation for an earlier finding.** Training used
+  `RandomHorizontalFlip`, inappropriate for chest X-rays (anatomy isn't
+  left-right symmetric, and it mirrors laterality markers into nonsense) —
+  plausibly why Grad-CAM was found attending to an "L" marker. Fixing it and
+  fully retraining left classification performance unchanged within noise
+  but *improved calibration stability* (seed std roughly halved) and changed
+  that Grad-CAM case's behavior, though not cleanly (Section 6). A
+  confusion-matrix labeling bug and an unseeded abstention baseline were
+  fixed at the same time (Sections 4-5).
 - **Discrimination and calibration are consistently different axes of
   reliability** — the recurring theme of this report. AUROC survives
   distribution shift and is stable across training seeds; calibration
-  degrades under shift and varies 3x across seeds (Sections 4-5).
+  degrades under shift and is more seed-variable than discrimination,
+  though less so after the pipeline fix above (Sections 4-5).
 - **The genuine fusion win is in retrieval, not classification.** A
   contrastive-projection model trained on real image-report pairs roughly
   doubles retrieval Recall@5/@10 over zero-shot BiomedCLIP, confirmed
@@ -78,6 +89,17 @@ dataset-of-origin shortcut probe on frozen penultimate features.
 
 ## 4. Baseline models — full-scale results
 
+**Note: numbers below reflect a corrected training pipeline.** A later full
+pipeline audit found that `dataset.py`'s training augmentation included
+`RandomHorizontalFlip`, inappropriate for chest X-rays — anatomy isn't
+left-right symmetric (heart, aortic arch), and flipping mirrors embedded
+laterality markers into unreadable nonsense, plausibly explaining the
+Grad-CAM finding in Section 6. Every checkpoint below was retrained without
+it; classification performance changed only within seed-to-seed noise, and
+calibration got *more* seed-stable (see the repeated-seed table below). A
+hard-coded confusion-matrix labeling bug was fixed at the same time. See
+`kaggle/recheck-augmentation/` and `kaggle/no-flip-full-ci/`.
+
 **These are the headline numbers**, from the full-scale run: DenseNet-121,
 224px, on the complete real IU X-Ray split (2,568 train / 549 val / 549
 test), run via the Kaggle API (see the note on methodology at the end of
@@ -90,40 +112,37 @@ signal versus small-sample noise.
 
 | Metric | Full-scale (seed 42, headline) | Small-scale (pipeline check) |
 |---|---|---|
-| Test AUROC | **0.792** | 0.749 |
-| Test AUPRC | **0.865** | 0.810 |
-| ECE before calibration | **0.052** | 0.137 |
-| ECE after temperature scaling | **0.040** | 0.094 |
+| Test AUROC | **0.785** | 0.749 |
+| Test AUPRC | **0.859** | 0.810 |
+| ECE before calibration | **0.069** | 0.137 |
+| ECE after temperature scaling | **0.071** | 0.094 |
 
-More training data improved both discrimination and calibration, as
-expected — and did so by more than a small tweak: ECE after calibration
-roughly halved. Full history in `outputs_full/history.json`.
+More training data improved both discrimination and calibration relative to
+the small-scale check, as expected. (Pre-fix, with the flip, this run read
+AUROC 0.792 / AUPRC 0.865 / ECE 0.052→0.040 — essentially the same result
+within noise; see the repeated-seed table below for why the single-seed
+calibration number moved.) Full history in `outputs_full_no_flip/history.json`.
 
 **Repeated-seed confidence interval** (`results/metrics_seed_ci.json`,
 seeds 42/43/44, identical hyperparameters, only the random seed differs):
 
 | Metric | Mean ± std (n=3) | Per-seed values (42 / 43 / 44) |
 |---|---|---|
-| Test AUROC | 0.784 ± 0.010 | 0.792 / 0.772 / 0.788 |
-| Test AUPRC | 0.864 ± 0.004 | 0.865 / 0.860 / 0.868 |
-| ECE after calibration | 0.080 ± 0.045 | 0.040 / 0.071 / 0.130 |
+| Test AUROC | 0.772 ± 0.011 | 0.785 / 0.766 / 0.766 |
+| Test AUPRC | 0.855 ± 0.008 | 0.859 / 0.860 / 0.847 |
+| ECE after calibration | 0.072 ± 0.022 | 0.071 / 0.095 / 0.051 |
 
-**Important, humbling finding: the originally-reported ECE (0.040) was the
-*best* of three seeds, not a typical one.** AUROC and AUPRC are tight and
-stable across seeds (std around 1% relative) — genuinely reliable numbers.
-Calibration is not: ECE after calibration ranges more than 3x across seeds
-(0.040 to 0.130). Seed 42 happens to be good on both axes (best AUROC
-*and* best calibration of the three), so this isn't a clean "better
-discrimination trades off against calibration" story — seed 44 has the
-second-best AUROC (0.788, behind seed 42's 0.792) but by far the worst
-calibration (ECE 0.130), and seed 43 has the worst AUROC (0.772) with
-middling calibration (0.071). With only 3 seeds there's too little data to
-say discrimination and calibration trade off against each other; the safe
-conclusion is narrower but still real: calibration is far more seed-
-sensitive than discrimination, for reasons this data can't isolate. The
-honest headline number for calibration going forward is 0.080 ± 0.045, not
-0.040 — reporting the single best-seed value alone would have been quietly
-misleading.
+**Calibration is still more seed-sensitive than discrimination, but the
+pipeline fix (see the note above the first table) noticeably tightened it.**
+AUROC and AUPRC remain tight and stable across seeds (std around 1%
+relative). ECE after calibration now ranges 0.051–0.095 (std 0.022) —
+compared to 0.040–0.130 (std 0.045) before removing `RandomHorizontalFlip`,
+roughly half the spread on a similar mean. Unlike the pre-fix run, the
+best-AUROC seed (42, 0.785) is no longer also the best-calibrated (that's
+now seed 44, ECE 0.051) — a hint of a real discrimination/calibration
+trade-off, though with n=3 this is far too little data to treat as
+established. The honest calibration number to report going forward is
+0.072 ± 0.022.
 
 **Zero-shot BiomedCLIP retrieval** (full real 549-study IU X-Ray test set):
 image→text Recall@1/5/10 = 1.28% / 3.64% / 5.65% (chance with 549
@@ -156,90 +175,110 @@ is graded (original > shuffled words > truncated > mismatched/empty), not a
 cliff. Replicated cleanly at scale, nothing revised here.
 
 **Cross-dataset distribution shift** (`results/shift_metrics.json`,
-full-scale checkpoint, full real Pneumonia test set, n=624): AUROC again
-*held up* under shift, and by a larger margin than at small scale (0.792
-in-distribution → 0.833 on Pneumonia). **Calibration again degraded**, ECE
-going from 0.040 (in-distribution) to 0.131 on the shift set — about 3.3x
-worse, a similar ratio to the small-scale run's 2.8x. The model still
-over-predicts abnormality on the shift set (mean predicted probability
-0.725 vs. a true 62.5% pneumonia rate) but less dramatically than the
-small-scale checkpoint did (88.8%) — more training data made the
-overconfidence-under-shift problem smaller, not solved. The qualitative
-finding replicates: discrimination survives distribution shift better than
-calibration does.
+no-flip full-scale checkpoint, full real Pneumonia test set, n=624): AUROC
+again *held up* under shift, and by a larger margin than at small scale
+(0.785 in-distribution → 0.847 on Pneumonia). **Calibration again
+degraded**, ECE going from 0.071 (in-distribution) to 0.083 on the shift
+set — a much more modest ~17% relative increase than the pre-fix run's
+~3.3x (0.040→0.131). The model still over-predicts abnormality on the
+shift set (mean predicted probability 0.602 vs. a true 62.5% pneumonia
+rate — now close to calibrated on this axis, versus 0.725 pre-fix) but the
+qualitative finding still replicates: discrimination survives distribution
+shift better than calibration does, just by a smaller margin now that
+training-time noise from the flip is gone.
 
 **Shortcut probe** (`results/shortcut_probe.json`, full real training sets:
 2,568 IU X-Ray + 4,448 Pneumonia images, n=7,016 combined): a linear probe
-on frozen features separates the two datasets with **AUROC = 0.9997,
-accuracy 99.8%** (vs. a 63.4% majority-class baseline) — effectively
+on frozen features separates the two datasets with **AUROC = 0.99995,
+accuracy 99.6%** (vs. a 63.4% majority-class baseline) — effectively
 perfect, and now confirmed on an order of magnitude more data than the
-small-scale run's already-perfect 1.0/1.0 on 400 images. This rules out the
-small-scale result being a tiny-sample fluke: the representations robustly
-and near-completely encode acquisition source. Still the same caveat as
+small-scale run's already-perfect 1.0/1.0 on 400 images, and unaffected by
+the augmentation fix (as expected — it probes frozen representations, not
+augmentation-sensitive predictions). This rules out the small-scale result
+being a tiny-sample fluke: the representations robustly and
+near-completely encode acquisition source. Still the same caveat as
 before — this doesn't by itself prove the classifier's *predictions* rely
 on the shortcut, only that the information is trivially present in the
 learned features and available to be relied upon.
 
 **MC-dropout uncertainty + abstention** (`results/mc_dropout_summary.json`,
 `results/abstention_metrics.json`, 20 stochastic passes, full 549-study
-test set): **this is the result that changed most at scale.** The
-small-scale run found predictive std nearly identical for correct vs.
-incorrect predictions (0.084 vs. 0.086) and uncertainty-ordered abstention
-no better than random. At full scale, predictive std is clearly separated —
-0.029 for correct predictions vs. 0.047 for incorrect ones (incorrect
-predictions carry ~64% higher epistemic uncertainty) — and uncertainty-
-ordered abstention roughly **halves** risk relative to random-order
-abstention (area-under-risk-coverage 0.170 vs. 0.323). The small-scale null
-result was exactly what the earlier draft of this report predicted it might
-be: an artifact of too little training data for MC-dropout's epistemic
-signal to sharpen, not a real property of the method. At full scale,
-uncertainty-aware abstention is a genuinely useful triage signal on this
-task.
+test set, no-flip checkpoint): **this is the result that changed most at
+scale.** The small-scale run found predictive std nearly identical for
+correct vs. incorrect predictions (0.084 vs. 0.086) and uncertainty-ordered
+abstention no better than random. At full scale, predictive std is clearly
+separated — 0.035 for correct predictions vs. 0.051 for incorrect ones
+(incorrect predictions carry ~44% higher epistemic uncertainty) — and
+uncertainty-ordered abstention scores clearly lower (better) than
+random-order abstention (area-under-risk-coverage 0.157 vs. 0.264, the
+latter now averaged over 100 random permutations rather than a single
+arbitrary draw — see the pipeline-fix note). The small-scale null result
+was exactly what the earlier draft of this report predicted it might be: an
+artifact of too little training data for MC-dropout's epistemic signal to
+sharpen, not a real property of the method. At full scale, uncertainty-aware
+abstention is a genuinely useful triage signal on this task.
 
 **Repeated-seed confirmation for all four diagnostics above**
-(`results/gate3_seed_ci.json`, seeds 42/43/44, using the 3 already-trained
-main checkpoints for shift/shortcut and 3 dropout-enabled checkpoints —
-seed 42's existing plus 2 newly trained — for MC-dropout/abstention).
-Unlike the Gate 1 classification result, **nothing here needed correcting
-— every qualitative finding held up cleanly across seeds**:
+(`results/gate3_seed_ci.json`, seeds 42/43/44, no-flip checkpoints
+throughout — the seed-42 main checkpoint reused from Section 4, 5 new
+checkpoints trained for the rest). Every qualitative finding still holds
+up cleanly across seeds after the pipeline fix, and calibration is again
+the metric that improved most:
 
 | Metric | Mean ± std (n=3) |
 |---|---|
-| Shift AUROC | 0.864 ± 0.036 (all seeds above their own in-distribution AUROC) |
-| Shift ECE | 0.117 ± 0.026 (all seeds well above their own in-distribution ECE) |
-| Shortcut probe AUROC | 0.9998 ± 0.0001 (essentially seed-invariant) |
-| MC-dropout std, correct predictions | 0.037 ± 0.008 |
-| MC-dropout std, incorrect predictions | 0.050 ± 0.004 (higher than correct, every seed) |
-| Abstention AUC-risk, uncertainty-ordered | 0.175 ± 0.014 |
-| Abstention AUC-risk, random-ordered | 0.293 ± 0.033 (worse than uncertainty-ordered, every seed) |
+| Shift AUROC | 0.863 ± 0.022 (all seeds above their own in-distribution AUROC) |
+| Shift ECE | 0.086 ± 0.014 (down from 0.117 ± 0.026 pre-fix, still above in-distribution ECE) |
+| Shortcut probe AUROC | 0.99992 ± 0.00003 (essentially seed-invariant, unaffected by the fix) |
+| MC-dropout std, correct predictions | 0.036 ± 0.005 |
+| MC-dropout std, incorrect predictions | 0.049 ± 0.004 (higher than correct, every seed) |
+| Abstention AUC-risk, uncertainty-ordered | 0.166 ± 0.008 |
+| Abstention AUC-risk, random-ordered | 0.261 ± 0.005 (worse than uncertainty-ordered, every seed; now itself averaged over 100 permutations per seed rather than one arbitrary draw) |
 
-The shortcut probe is essentially seed-invariant (std of 0.0001 on an
-AUROC of ~1.0) — this is a property of the *data*, not an artifact of one
-particular trained model. MC-dropout's correct-vs-incorrect std gap and
-abstention's uncertainty-vs-random gap both hold in the same direction for
-all three seeds, with no overlap between the two conditions' ranges in
-either case — a real, repeatable effect, not a coincidence of seed 42.
-Contrast this with the Gate 1 classification CI (Section 4), where the
-repeated-seed check *did* overturn the originally-reported number: not
-every metric in this project turned out to be seed-fragile, only
-calibration did.
+The shortcut probe remains essentially seed-invariant — this is a property
+of the *data*, not an artifact of one particular trained model, and
+unaffected by the augmentation fix as expected. MC-dropout's
+correct-vs-incorrect std gap and abstention's uncertainty-vs-random gap
+both hold in the same direction for all three seeds, with no overlap
+between the two conditions' ranges in either case — a real, repeatable
+effect, not a coincidence of seed 42. As in Section 4, the clearest
+before/after change from the pipeline fix is calibration-related: shift ECE
+std dropped from 0.026 to 0.014, mirroring the tighter Gate 1 calibration
+spread — removing the flip made calibration more consistent across seeds
+generally, not just for the in-distribution result.
 
 ## 6. Explainability
 
-Grad-CAM overlays in `results/gradcam_examples/`, full-scale checkpoint, 6
-real IU X-Ray test images (not for public figures — CC BY-NC-ND, see
-`MODEL_CARD.md`; use Pneumonia-dataset examples for anything public-facing).
+Grad-CAM overlays in `results/gradcam_examples/`, no-flip full-scale
+checkpoint, 6 real IU X-Ray test images (not for public figures — CC
+BY-NC-ND, see `MODEL_CARD.md`; use Pneumonia-dataset examples for anything
+public-facing).
 
-One overlay (a correctly-identified-as-normal case, true=0, p=0.31) shows
-its hottest activation region centered on the image's "L" laterality
-marker/annotation text in the corner, not on lung tissue. A single example
-isn't a finding by itself, but it's a concrete, visible instance of exactly
-the kind of thing the shortcut probe (Section 5) found abstractly: the
-model has access to, and apparently sometimes attends to, image metadata/
-annotation artifacts rather than purely anatomical content. Worth a
-systematic check (do laterality markers correlate with any prediction
-pattern across the full test set?) as follow-up work rather than concluding
-from one image.
+One overlay (`3089_IM-1444-1001`, a correctly-identified-as-normal case,
+true=0) originally showed its hottest activation region centered sharply
+and asymmetrically on the image's "L" laterality marker/annotation text,
+not on lung tissue — a concrete, visible instance of exactly the kind of
+thing the shortcut probe found abstractly. The pipeline audit (see the note
+at the start of Section 4) identified training-time `RandomHorizontalFlip`
+as a plausible cause: chest X-ray anatomy isn't left-right symmetric, and
+flipping mirrors embedded laterality markers into unreadable nonsense,
+which could teach a model that a marker's presence/shape — rather than its
+specific content — is a usable cue.
+
+**Direct before/after check on this exact image, no-flip checkpoint vs.
+the original:** the sharp, asymmetric fixation on the "L" marker is gone.
+In its place, the no-flip checkpoint shows broader, *symmetric* hot
+attention across **both** shoulder/collar corners — the "SAW" marker on the
+opposite side is now equally hot, not just the "L" marker. The predicted
+probability for this image also shifted (0.15 → 0.44, both correctly below
+the 0.5 threshold). **This is a real, honest, partial result, not a clean
+fix**: the flip does appear to be at least part of the cause of the
+original sharp marker-fixation, but the model still isn't attending to
+lung tissue on this image — it has moved from one peripheral shortcut
+pattern (asymmetric letter-fixation) to another (symmetric corner/shoulder
+attention). A single example still isn't a systematic finding by itself; a
+worthwhile follow-up (not yet done) would check whether this pattern holds
+across more of the test set now that the augmentation is fixed.
 
 ## 7. Multimodal / foundation-model extension
 
@@ -400,6 +439,11 @@ than either the most-confident extremes or fully automated keyword counts.
 
 ## 9. Limitations
 
+- The RandomHorizontalFlip fix (Section 4) changed one Grad-CAM case's
+  attention pattern but did not make it attend to lung tissue — it moved
+  from one peripheral shortcut (asymmetric marker-fixation) to another
+  (symmetric shoulder/corner attention). The underlying shortcut-learning
+  tendency itself is not resolved, only one specific manifestation of it.
 - IU X-Ray's `Abnormal` label is a heuristic derived from the same report
   used for the multimodal comparison — confirmed as a real, non-trivial
   effect at full scale (Section 7), not just a theoretical risk.
@@ -435,9 +479,13 @@ than either the most-confident extremes or fully automated keyword counts.
 - Investigate the shortcut-probe finding further: which features drive the
   near-perfect dataset separability (image statistics/preprocessing
   artifacts vs. something more concerning)? Would inform whether
-  domain-adaptation or harmonization preprocessing is worth adding. The
-  Grad-CAM laterality-marker observation (Section 6) is a concrete starting
-  point.
+  domain-adaptation or harmonization preprocessing is worth adding.
+- ~~Investigate the Grad-CAM laterality-marker observation~~ — partially
+  done (Section 6): traced to `RandomHorizontalFlip`, fixed, and confirmed
+  the specific marker-fixation behavior changed. Natural extension: a
+  systematic check across more of the test set (not just one image) for
+  whether peripheral/shoulder-region shortcut attention is now the more
+  general pattern replacing the marker-specific one.
 - ~~A genuine multimodal fusion test~~ — done (Section 7): contrastive
   projection heads on frozen BiomedCLIP embeddings, trained on real
   image-report pairs, roughly double Recall@5/@10 over zero-shot at full

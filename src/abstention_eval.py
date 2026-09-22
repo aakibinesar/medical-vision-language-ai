@@ -42,6 +42,12 @@ def main():
     ap.add_argument("--mc-dropout-csv", required=True,
                      help="Output of uncertainty_mc_dropout.py (path,y_true,mean_prob,std_prob)")
     ap.add_argument("--threshold", type=float, default=0.5)
+    ap.add_argument("--seed", type=int, default=42, help="Base seed for the random-order baseline")
+    ap.add_argument("--n-random-draws", type=int, default=100,
+                     help="Random-order baseline is averaged over this many independent "
+                          "permutations, not a single fixed draw - one arbitrary permutation "
+                          "can be a lucky or unlucky draw on its own, which previously made "
+                          "the 'random' baseline noisier than the seed-to-seed std alone let on.")
     ap.add_argument("--outdir", default="results")
     args = ap.parse_args()
 
@@ -52,13 +58,6 @@ def main():
     coverages = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 
     curve_uncertainty = risk_coverage_curve(y_true, y_pred, df["std_prob"].values, coverages)
-
-    # Baseline comparison: abstaining by random order instead of by uncertainty.
-    # If the uncertainty-based curve isn't meaningfully better than random
-    # abstention, the uncertainty estimate isn't earning its keep.
-    rng = np.random.default_rng(42)
-    random_order_score = rng.permutation(len(y_true)).astype(float)
-    curve_random = risk_coverage_curve(y_true, y_pred, random_order_score, coverages)
 
     def auc_risk(curve):
         # Manual trapezoidal rule - avoids relying on np.trapz (removed in
@@ -72,10 +71,39 @@ def main():
             area += (risks[i] + risks[i - 1]) / 2 * (covs[i] - covs[i - 1])
         return float(area)
 
+    # Baseline comparison: abstaining by random order instead of by uncertainty.
+    # If the uncertainty-based curve isn't meaningfully better than random
+    # abstention, the uncertainty estimate isn't earning its keep. Averaged
+    # over many independent permutations rather than one fixed draw - a
+    # single arbitrary permutation can itself be a lucky or unlucky draw,
+    # which previously left the "random" baseline carrying its own unreported
+    # source of noise on top of genuine model-to-model (seed) variance.
+    rng = np.random.default_rng(args.seed)
+    random_draw_aucs = []
+    random_draw_curves = []
+    for _ in range(args.n_random_draws):
+        random_order_score = rng.permutation(len(y_true)).astype(float)
+        curve = risk_coverage_curve(y_true, y_pred, random_order_score, coverages)
+        random_draw_curves.append(curve)
+        random_draw_aucs.append(auc_risk(curve))
+
+    # Representative curve for the plot/JSON: risk at each coverage level
+    # averaged across all draws (the AUC summary below uses the per-draw
+    # AUCs directly, which is the statistically cleaner quantity).
+    curve_random = []
+    for i, cov in enumerate(coverages):
+        accs = [c[i]["accuracy"] for c in random_draw_curves]
+        curve_random.append({
+            "coverage": cov, "n_answered": random_draw_curves[0][i]["n_answered"],
+            "accuracy": float(np.mean(accs)), "risk": float(1 - np.mean(accs)),
+        })
+
     summary = {
         "full_coverage_accuracy": float((y_pred == y_true).mean()),
         "area_under_risk_coverage_uncertainty_ordered": auc_risk(curve_uncertainty),
-        "area_under_risk_coverage_random_ordered": auc_risk(curve_random),
+        "area_under_risk_coverage_random_ordered": float(np.mean(random_draw_aucs)),
+        "area_under_risk_coverage_random_ordered_std": float(np.std(random_draw_aucs)),
+        "n_random_draws": args.n_random_draws,
         "curve_uncertainty_ordered": curve_uncertainty,
         "curve_random_ordered": curve_random,
     }

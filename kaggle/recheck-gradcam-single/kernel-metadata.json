@@ -1,0 +1,17 @@
+{
+  "id": "aakibinesar/trustmed-vlm-recheck-gradcam-single",
+  "title": "trustmed-vlm-recheck-gradcam-single",
+  "code_file": "kernel_run.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [
+    "aakibinesar/trustmed-vlm-src",
+    "raddar/chest-xrays-indiana-university",
+    "aakibinesar/trustmed-vlm-no-flip-ckpt"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

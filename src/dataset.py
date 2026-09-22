@@ -13,9 +13,12 @@ IMAGENET_STD = [0.229, 0.224, 0.225]
 
 def build_transforms(img_size, train):
     if train:
+        # No horizontal flip: chest X-ray anatomy isn't left-right symmetric
+        # (heart, aortic arch), and flipping mirrors embedded laterality
+        # markers ("L"/"R" stickers) into unreadable nonsense - plausibly why
+        # Grad-CAM was found attending to an "L" marker in one case.
         return transforms.Compose([
             transforms.Resize((img_size, img_size)),
-            transforms.RandomHorizontalFlip(),
             transforms.RandomRotation(5),
             transforms.ToTensor(),
             transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),

@@ -8,9 +8,9 @@ notebook code to drift out of sync, which is what happened to an earlier
 pneumonia-only notebook this repo used to ship — retired once the primary
 dataset moved to IU X-Ray).
 
-All four kernels below share the same `src/*.py` dataset
-(`trustmed-vlm-src`) — update it once (`kaggle datasets version`), re-run
-whichever kernel(s) you need.
+All kernels below share the same `src/*.py` dataset (`trustmed-vlm-src`) —
+update it once (`kaggle datasets version`), re-run whichever kernel(s) you
+need.
 
 ## `full-run/` — training, calibration, Gate 3, error analysis
 
@@ -41,9 +41,12 @@ needs its own full training run), so this trains seeds 43 and 44 only —
 seed 42 was already trained and evaluated in `full-run/`, so re-running it
 would waste ~27 minutes of GPU time for no new information. Combine the
 three with `aggregate_seed_metrics.py` locally afterward. This is what
-caught a real finding: ECE varies far more across seeds (0.040-0.130) than
-AUROC does (0.772-0.792) — the originally-reported single-seed ECE was the
-best of three, not typical (see `reports/technical_report.md` Section 4).
+caught a real finding: ECE varies far more across seeds than AUROC does —
+the originally-reported single-seed ECE was the best of three, not typical
+(see `reports/technical_report.md` Section 4). Numbers here are from this
+kernel's original (pre-`RandomHorizontalFlip`-fix) run; `no-flip-full-ci/`
+below superseded them with the corrected ones now in `results/`, without
+changing this finding's qualitative shape.
 
 ## `gate3-seeds/` — confidence interval for the Gate 3 diagnostics
 
@@ -59,17 +62,61 @@ Kaggle dataset so this kernel doesn't need to retrain checkpoints that
 already exist). Aggregate the per-seed results afterward with
 `aggregate_gate3_seed_metrics.py`. Result: every Gate 3 finding held up
 across seeds with nothing to correct — see
-`reports/technical_report.md` Section 5.
+`reports/technical_report.md` Section 5. As with `seed-repeats/`, numbers
+here are from this kernel's original (pre-fix) run; `no-flip-full-ci/`
+below superseded them.
 
-## How it works (any of the four kernels)
+## `fusion-finetune/` — does letting the backbone adapt beat frozen heads?
+
+Follow-up to `fusion-retrieval/`: fine-tunes the last 2 transformer blocks
+of BOTH BiomedCLIP towers (`contrastive_finetune.py`) instead of keeping
+the backbone fully frozen, with a much smaller backbone learning rate than
+the projection heads. Result: no - the training curve is a textbook
+overfitting signature (validation Recall@1 peaks at epoch 6 of 40, never
+recovers), and even the best early-stopped checkpoint only ties the frozen
+approach's performance at roughly 500x the compute cost. See
+`reports/technical_report.md`. Needs `trustmed-vlm-src` + IU X-Ray only.
+
+## `recheck-augmentation/`, `recheck-gradcam-single/`, `no-flip-full-ci/` — the RandomHorizontalFlip fix
+
+A full pipeline audit found `dataset.py`'s training-time
+`RandomHorizontalFlip` was inappropriate for chest X-rays (mirrors
+laterality markers into nonsense) - plausibly the cause of a Grad-CAM
+overlay fixating on an "L" marker instead of lung tissue. Propagated in
+three steps, cheapest first:
+
+1. `recheck-augmentation/` — retrains just the seed-42 main checkpoint
+   without the flip and reruns eval/Grad-CAM, to check the fix is safe
+   (classification metrics unaffected) before committing to a full re-run.
+2. `recheck-gradcam-single/` — inference-only (no training): re-renders
+   Grad-CAM for the *exact* "L marker" image under the no-flip checkpoint
+   (uploaded as `trustmed-vlm-no-flip-ckpt`), using `gradcam.py`'s
+   `--include-path` flag to force a specific image into the sample rather
+   than relying on the random sample to happen to include it again.
+3. `no-flip-full-ci/` — full propagation: reuses the no-flip seed-42
+   checkpoint from step 1, trains the 5 remaining checkpoints (dropout-42,
+   main/dropout-43, main/dropout-44) without the flip, and reruns every
+   Gate 1/Gate 3 step for all 3 seeds. Does *not* touch anything
+   BiomedCLIP-based (retrieval, fusion, contrastive projection/fine-tune) -
+   those don't use the CNN classifier or its augmentation, so they're
+   unaffected. Needs a fourth dataset source, `trustmed-vlm-no-flip-ckpt`
+   (the step-1 checkpoint, uploaded so this kernel doesn't retrain it).
+
+Result: classification metrics unchanged within seed noise; calibration got
+*more* seed-stable (ECE std roughly halved, both in- and
+out-of-distribution); the specific Grad-CAM case changed from sharp
+asymmetric marker-fixation to broader symmetric shoulder-corner attention -
+a real change, not a clean fix. See `MODEL_CARD.md` and
+`reports/technical_report.md` Section 6.
+
+## How it works (any kernel above)
 
 1. `src/*.py` is pushed as a private Kaggle dataset (`kaggle datasets create`,
    or `kaggle datasets version` to update an existing one) so the kernel
    runs the actual tested scripts via subprocess, not a copy.
 2. `kernel_run.py` is pushed as a GPU kernel (`kaggle kernels push -p .` from
-   inside `full-run/`, `fusion-retrieval/`, `seed-repeats/`, or
-   `gate3-seeds/`) with that folder's `kernel-metadata.json` declaring its
-   dataset sources.
+   inside that kernel's own folder) with that folder's `kernel-metadata.json`
+   declaring its dataset sources.
 3. Status/output is polled and fetched via the API (`kaggle kernels status` /
    `kernels output`) once complete.
 
@@ -94,9 +141,10 @@ across seeds with nothing to correct — see
 - **The Kaggle Python SDK has a Windows-only bug** in `kernels_output`: it
   opens the downloaded log file with the OS default encoding (cp1252 on
   Windows) instead of UTF-8, which crashes if the log contains non-Latin1
-  characters (pip's own progress-bar output, for instance). Workaround: call
-  the same underlying API directly and write the log with
-  `encoding="utf-8"` yourself, rather than using `kernels_output`/
+  characters (pip's own progress-bar output, for instance). Workaround:
+  `python kaggle/fetch_kernel_log.py <owner/kernel-slug> <out-path>` calls
+  the same underlying API directly and writes the log with
+  `encoding="utf-8"` itself, rather than using `kernels_output`/
   `kaggle kernels output` as-is.
 - Two real bugs in this repo's own code only surfaced at Kaggle/GPU scale
   and are now fixed in `src/`: `gradcam.py`'s DenseNet-121 hook (PyTorch
@@ -104,3 +152,12 @@ across seeds with nothing to correct — see
   colliding with DenseNet's in-place ReLU) and `abstention_eval.py` (relied
   on `np.trapezoid`, which doesn't exist before numpy 2.0 — Kaggle's numpy
   was older; fixed with a manual trapezoidal calculation).
+- A later full pipeline audit (not Kaggle-specific, but only checkable
+  against real data) found three more: `eval.py`'s confusion-matrix plot
+  had hard-coded "Pneumonia" axis labels even when evaluating a different
+  label; `dataset.py` trained with `RandomHorizontalFlip`, inappropriate
+  for chest X-rays; `abstention_eval.py`'s random-order baseline used one
+  hard-coded, unseeded permutation instead of averaging over many. All
+  three fixed in `src/`; `gradcam.py` also gained an `--include-path` flag
+  to force a specific image into the sample, for exact before/after
+  comparisons like the one in `recheck-gradcam-single/`.

@@ -1,4 +1,4 @@
-# Model Card — TrustMed-VLM (Project 1)
+# Model Card — TrustMed-VLM
 
 **Intended use.** Portfolio/research baseline comparing image-only chest X-ray
 classification against a pretrained medical vision-language model (BiomedCLIP)

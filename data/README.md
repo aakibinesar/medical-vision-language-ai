@@ -2,8 +2,7 @@
 
 This folder is intentionally empty in git. No medical images are committed to the repository.
 
-Per the Project 1 (TrustMed-VLM) plan, this repo now uses **two** datasets
-with different roles:
+This repo uses **two** datasets with different roles:
 
 | Dataset | Role | Has paired text? |
 |---|---|---|

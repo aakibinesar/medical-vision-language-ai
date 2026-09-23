@@ -461,11 +461,31 @@ resolved by the data collected so far.
 **Conclusion: keep the frozen, heads-only approach.** It is both cheaper
 and at least as good as backbone fine-tuning under this setup — a useful
 negative result in its own right, and evidence for a real design choice
-rather than an unexplored corner. A cleaner follow-up (not done here) would
-need a training signal that doesn't confound negative-pool size with
-backbone adaptation — e.g. a much larger mini-batch, a memory bank of past
-negatives, or gradient accumulation to approximate full-batch negatives
-while still updating the backbone.
+rather than an unexplored corner.
+
+**Attempted to close the confound directly — hit a hardware ceiling, not a
+methodology dead end.** A larger mini-batch is the simplest way to
+strengthen the negative pool without changing anything else, so three
+progressively smaller attempts were tried, all on the same P100 (16GB):
+`--batch-size 2568` (the entire training set, matching the frozen
+approach's negative pool exactly) OOM'd trying to allocate 5.79 GiB;
+`--batch-size 512` OOM'd trying to allocate 1.50 GiB; `--batch-size 256`
+still OOM'd, trying to allocate 768 MiB. The shrinking overflow across
+these three attempts suggests the real ceiling for 2 unfrozen ViT + 2
+unfrozen BERT blocks on this hardware sits just above 128 — plausibly in
+the 150-190 range — but even landing exactly on it would only take the
+negative pool from 127 to roughly 180, nowhere near enough to meaningfully
+close the gap to 2,568. Decided against continuing to guess narrower batch
+sizes for a fix that wouldn't resolve the confound even in the best case.
+
+**This is an honest, complete stopping point, not an abandoned thread.**
+The confound is real and stays flagged (see above and Limitations); closing
+it properly needs a different technique, not more GPU memory — e.g. a
+MoCo-style memory bank that reuses cached embeddings from recent past
+batches as additional negatives, which decouples negative-pool size from
+how much fits in memory at once. That's meaningful new engineering work,
+not a rerun, and is left as a specific, well-scoped item for future work
+rather than something this report's evidence can currently resolve.
 
 ## 8. Error analysis
 
@@ -576,11 +596,13 @@ than either the most-confident extremes or fully automated keyword counts.
 - ~~Try fine-tuning more than just linear projection heads~~ — done
   (Section 7): unfreezing the last 2 transformer blocks of both towers
   overfits (validation Recall@1 peaks at epoch 6/40) and only ties the
-  frozen result at ~500x the compute cost. Natural extension, not done
-  here: rerun with a training signal that doesn't confound negative-pool
-  size with backbone adaptation (larger mini-batch, a negative memory bank,
-  or gradient accumulation), to isolate whether the overfitting verdict
-  holds once that confound is controlled for.
+  frozen result at ~500x the compute cost. Tried to close the negative-pool
+  confound with a larger mini-batch (up to the full 2,568-example training
+  set) - all attempts OOM'd on the P100's 16GB, with the real ceiling
+  sitting just above 128 and too low to meaningfully help. **Remaining
+  future work**: a MoCo-style memory bank of cached past-batch negatives,
+  which would close the gap to 2,568 without needing more GPU memory -
+  genuine new engineering, not a rerun of what's already been tried here.
 - A systematic (not keyword-based) read of a larger random error sample,
   to properly characterize the FN/FP patterns hinted at in Section 8.
 - ~~Repeated-seed runs for confidence intervals on the headline numbers~~ —

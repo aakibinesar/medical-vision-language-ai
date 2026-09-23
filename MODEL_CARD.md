@@ -27,8 +27,7 @@ across both shoulder corners — a real change in behavior, not a clean fix
 confusion-matrix labeling bug (always showed "Pneumonia" even for the
 `Abnormal` label) and an unseeded, single-draw random-abstention baseline
 (now averaged over 100 draws) were fixed at the same time. See
-`kaggle/recheck-augmentation/`, `kaggle/recheck-gradcam-single/`, and
-`kaggle/no-flip-full-ci/` for the full recheck.
+`kaggle/no-flip-full-ci/` and `kaggle/README.md` for the full recheck.
 
 **Multimodal baseline.** [BiomedCLIP](https://huggingface.co/microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224)
 (PubMedBERT text tower + ViT-B/16 image tower, pretrained on PubMed Central

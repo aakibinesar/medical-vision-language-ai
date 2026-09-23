@@ -105,7 +105,7 @@ Grad-CAM finding in Section 6. Every checkpoint below was retrained without
 it; classification performance changed only within seed-to-seed noise, and
 calibration got *more* seed-stable (see the repeated-seed table below). A
 hard-coded confusion-matrix labeling bug was fixed at the same time. See
-`kaggle/recheck-augmentation/` and `kaggle/no-flip-full-ci/`.
+`kaggle/no-flip-full-ci/` and `kaggle/README.md`.
 
 **These are the headline numbers**, from the full-scale run: DenseNet-121,
 224px, on the complete real IU X-Ray split (2,568 train / 549 val / 549

@@ -34,38 +34,6 @@ invocation (`--seeds 42 43 44`) since embeddings are deterministic and only
 need extracting once — `fusion-retrieval/` uses this directly rather than
 needing a separate kernel per seed.
 
-## `seed-repeats/` — confidence interval for the Gate 1 CNN headline numbers
-
-`train.py` doesn't have the same reuse-the-embeddings shortcut (each seed
-needs its own full training run), so this trains seeds 43 and 44 only —
-seed 42 was already trained and evaluated in `full-run/`, so re-running it
-would waste ~27 minutes of GPU time for no new information. Combine the
-three with `aggregate_seed_metrics.py` locally afterward. This is what
-caught a real finding: ECE varies far more across seeds than AUROC does —
-the originally-reported single-seed ECE was the best of three, not typical
-(see `reports/technical_report.md` Section 4). Numbers here are from this
-kernel's original (pre-`RandomHorizontalFlip`-fix) run; `no-flip-full-ci/`
-below superseded them with the corrected ones now in `results/`, without
-changing this finding's qualitative shape.
-
-## `gate3-seeds/` — confidence interval for the Gate 3 diagnostics
-
-Extends repeated-seed CI to shift, shortcut probe, MC-dropout, and
-abstention (previously single-run against the seed-42 checkpoint only).
-Reuses the 3 already-trained main checkpoints (seeds 42/43/44) for
-shift_eval/shortcut_probe — no retraining — but trains 2 more
-dropout-enabled checkpoints (seeds 43/44; only seed 42's existed) for
-MC-dropout/abstention. Needs a fourth dataset source,
-`trustmed-vlm-checkpoints` (the 3 main + 1 dropout `.pt` files from
-`full-run/` and `seed-repeats/`, uploaded once as their own small private
-Kaggle dataset so this kernel doesn't need to retrain checkpoints that
-already exist). Aggregate the per-seed results afterward with
-`aggregate_gate3_seed_metrics.py`. Result: every Gate 3 finding held up
-across seeds with nothing to correct — see
-`reports/technical_report.md` Section 5. As with `seed-repeats/`, numbers
-here are from this kernel's original (pre-fix) run; `no-flip-full-ci/`
-below superseded them.
-
 ## `fusion-finetune/` — does letting the backbone adapt beat frozen heads?
 
 Follow-up to `fusion-retrieval/`: fine-tunes the last 2 transformer blocks
@@ -77,30 +45,28 @@ recovers), and even the best early-stopped checkpoint only ties the frozen
 approach's performance at roughly 500x the compute cost. See
 `reports/technical_report.md`. Needs `trustmed-vlm-src` + IU X-Ray only.
 
-## `recheck-augmentation/`, `recheck-gradcam-single/`, `no-flip-full-ci/` — the RandomHorizontalFlip fix
+## `no-flip-full-ci/` — full repeated-seed retrain after a pipeline audit fix
 
 A full pipeline audit found `dataset.py`'s training-time
 `RandomHorizontalFlip` was inappropriate for chest X-rays (mirrors
 laterality markers into nonsense) - plausibly the cause of a Grad-CAM
-overlay fixating on an "L" marker instead of lung tissue. Propagated in
-three steps, cheapest first:
+overlay fixating on an "L" marker instead of lung tissue, alongside two
+other real bugs (see the gotchas below). This kernel is the full
+propagation: reuses the already-trained no-flip seed-42 main checkpoint,
+trains the 5 remaining ones without the flip (dropout-42, main/dropout-43,
+main/dropout-44), and reruns every Gate 1/Gate 3 step for all 3 seeds. Does
+*not* touch anything BiomedCLIP-based (retrieval, fusion, contrastive
+projection/fine-tune) - those don't use the CNN classifier or its
+augmentation, so they're unaffected.
 
-1. `recheck-augmentation/` — retrains just the seed-42 main checkpoint
-   without the flip and reruns eval/Grad-CAM, to check the fix is safe
-   (classification metrics unaffected) before committing to a full re-run.
-2. `recheck-gradcam-single/` — inference-only (no training): re-renders
-   Grad-CAM for the *exact* "L marker" image under the no-flip checkpoint
-   (uploaded as `trustmed-vlm-no-flip-ckpt`), using `gradcam.py`'s
-   `--include-path` flag to force a specific image into the sample rather
-   than relying on the random sample to happen to include it again.
-3. `no-flip-full-ci/` — full propagation: reuses the no-flip seed-42
-   checkpoint from step 1, trains the 5 remaining checkpoints (dropout-42,
-   main/dropout-43, main/dropout-44) without the flip, and reruns every
-   Gate 1/Gate 3 step for all 3 seeds. Does *not* touch anything
-   BiomedCLIP-based (retrieval, fusion, contrastive projection/fine-tune) -
-   those don't use the CNN classifier or its augmentation, so they're
-   unaffected. Needs a fourth dataset source, `trustmed-vlm-no-flip-ckpt`
-   (the step-1 checkpoint, uploaded so this kernel doesn't retrain it).
+It was reached in two cheaper steps first (both since retired, since this
+kernel superseded them): a single-seed pilot retrained just the seed-42
+checkpoint to confirm the fix was safe (classification metrics unaffected)
+before committing to a full re-run, and a second, inference-only step
+re-rendered Grad-CAM for the *exact* "L marker" image under the no-flip
+checkpoint using `gradcam.py`'s `--include-path` flag (added for this
+purpose - forces a specific image into the sample rather than relying on
+the random sample to happen to include it again).
 
 Result: classification metrics unchanged within seed noise; calibration got
 *more* seed-stable (ECE std roughly halved, both in- and
@@ -160,4 +126,5 @@ a real change, not a clean fix. See `MODEL_CARD.md` and
   hard-coded, unseeded permutation instead of averaging over many. All
   three fixed in `src/`; `gradcam.py` also gained an `--include-path` flag
   to force a specific image into the sample, for exact before/after
-  comparisons like the one in `recheck-gradcam-single/`.
+  comparisons (used to re-render the "L marker" case under the fix — see
+  `no-flip-full-ci/` above).

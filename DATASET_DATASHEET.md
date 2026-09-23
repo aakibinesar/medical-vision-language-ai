@@ -6,10 +6,11 @@
   [`raddar/chest-xrays-indiana-university`](https://www.kaggle.com/datasets/raddar/chest-xrays-indiana-university)
 - **License:** **CC BY-NC-ND 4.0** (Attribution-NonCommercial-NoDerivatives),
   as stated on the Kaggle listing — verified 2026-08-12. This is more
-  restrictive than initially assumed: NonCommercial is fine for a PhD
-  portfolio, but **NoDerivatives means modified/processed versions of the
-  images (resized crops, Grad-CAM overlays, etc.) should not be published
-  publicly** without the rightsholder's permission. Practical effect on this
+  restrictive than initially assumed: NonCommercial is fine for a
+  non-commercial research/portfolio project, but **NoDerivatives means
+  modified/processed versions of the images (resized crops, Grad-CAM
+  overlays, etc.) should not be published publicly** without the
+  rightsholder's permission. Practical effect on this
   repo: raw and derived images stay out of git (already the case, via
   `.gitignore`), and any Grad-CAM/qualitative figures used in the public
   README or technical report should come from the Pneumonia dataset (CC BY

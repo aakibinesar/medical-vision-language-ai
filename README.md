@@ -1,9 +1,5 @@
 # TrustMed-VLM: Trustworthy Medical Vision-Language AI
 
-Project 1 of a two-project PhD-application research programme (Project 2,
-PathoSpatial-GNN, is a separate spatial-biology/graph-learning repo, currently
-in data-feasibility scouting only).
-
 **Research question:** Can a pretrained medical vision-language model provide
 more reliable and transferable predictions than conventional image-only
 models, particularly under limited labels and distribution shift?
@@ -28,7 +24,7 @@ requires your own PhysioNet identity verification).
 ## Repository structure
 
 ```
-medical-vision-language-ai-portfolio/
+medical-vision-language-ai/
 ├── src/
 │   ├── dataset.py                  # CXRDataset + transforms (classification)
 │   ├── clip_utils.py                # shared BiomedCLIP embedding extraction
@@ -119,7 +115,7 @@ kaggle kernels output <owner>/trustmed-vlm-full-run -p out/   # or see kaggle/RE
                                                                  # Windows encoding-bug workaround
 ```
 
-## Status against the Project 1 stage gates
+## Status against the project's stage gates
 
 All gates below reflect the **full-scale** run (2,568/549/549-study real IU
 X-Ray split, DenseNet-121, 224px, Kaggle GPU) unless noted. An earlier
@@ -195,7 +191,7 @@ details.
       real-but-overstated: both patterns are still visible but explain a
       minority of cases at full scale. Reported as a methodological lesson,
       not quietly dropped — see `reports/technical_report.md` Section 8.
-- [x] **Gate 4** (supervisor-ready) — **complete**: technical report and
+- [x] **Gate 4** (write-up complete) — **complete**: technical report and
       model card hold real full-scale results throughout, the genuine
       fusion test, and repeated-seed confidence intervals (n=3) for every
       headline number and all four Gate 3 diagnostics. The classification

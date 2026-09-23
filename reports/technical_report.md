@@ -1,11 +1,11 @@
 # TrustMed-VLM: Trustworthy Medical Vision-Language AI Under Distribution Shift
 
-**Novelty target (from the Project 1 red-team assessment):** a systematic
-comparison of image-only and medical vision-language models under limited
-labels, missing or corrupted text, calibration error, shortcut dependence,
-and cross-environment distribution shift, including uncertainty-aware
-abstention. The result is not "we fine-tuned a VLM on medical images" — it's
-the reliability/robustness comparison itself.
+**Novelty target:** a systematic comparison of image-only and medical
+vision-language models under limited labels, missing or corrupted text,
+calibration error, shortcut dependence, and cross-environment distribution
+shift, including uncertainty-aware abstention. The result is not "we
+fine-tuned a VLM on medical images" — it's the reliability/robustness
+comparison itself.
 
 ## Key findings at a glance
 
@@ -613,5 +613,5 @@ than either the most-confident extremes or fully automated keyword counts.
 - MIMIC-CXR upgrade, pending PhysioNet credentialing.
 - Grand Challenge participation (REG2027/CXR-LT 2027 preferred; BEETLE
   parked on an unresolved storage question; AMIA/VinBigData detection
-  queued as a no-deadline fallback) — per Prof Slabaugh's feedback, now
-  that Project 1's core gates are complete.
+  queued as a no-deadline fallback), now that this project's core gates
+  are complete.

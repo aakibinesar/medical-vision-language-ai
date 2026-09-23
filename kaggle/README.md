@@ -14,6 +14,9 @@ need.
 
 ## `full-run/` — training, calibration, Gate 3, error analysis
 
+*(Kept private — this kernel's output includes Grad-CAM overlays derived
+from IU X-Ray, which is CC BY-NC-ND/NoDerivatives; see `MODEL_CARD.md`.)*
+
 Data prep, full-scale training (main + MC-dropout checkpoints),
 calibration/eval, Grad-CAM, the classification fusion baseline, and the
 whole Gate 3 + error-analysis suite — each step wrapped so one failure
@@ -21,6 +24,8 @@ doesn't abort the rest. Needs `trustmed-vlm-src` + IU X-Ray + Pneumonia as
 dataset sources.
 
 ## `fusion-retrieval/` — the genuine, unconfounded fusion test
+
+**Live:** https://www.kaggle.com/code/aakibinesar/trustmed-vlm-fusion-retrieval
 
 Data prep + `contrastive_projection.py` only (see that script's docstring
 and `reports/technical_report.md` Section 7 for what it does and why it's
@@ -36,6 +41,8 @@ needing a separate kernel per seed.
 
 ## `fusion-finetune/` — does letting the backbone adapt beat frozen heads?
 
+**Live:** https://www.kaggle.com/code/aakibinesar/trustmed-vlm-fusion-finetune
+
 Follow-up to `fusion-retrieval/`: fine-tunes the last 2 transformer blocks
 of BOTH BiomedCLIP towers (`contrastive_finetune.py`) instead of keeping
 the backbone fully frozen, with a much smaller backbone learning rate than
@@ -46,6 +53,9 @@ approach's performance at roughly 500x the compute cost. See
 `reports/technical_report.md`. Needs `trustmed-vlm-src` + IU X-Ray only.
 
 ## `no-flip-full-ci/` — full repeated-seed retrain after a pipeline audit fix
+
+*(Kept private — same reason as `full-run/`: its output includes Grad-CAM
+overlays derived from IU X-Ray.)*
 
 A full pipeline audit found `dataset.py`'s training-time
 `RandomHorizontalFlip` was inappropriate for chest X-rays (mirrors

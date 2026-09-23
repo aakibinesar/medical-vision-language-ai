@@ -1,7 +1,8 @@
 """Full propagation of the RandomHorizontalFlip removal (dataset.py) through
 every checkpoint and Gate 1/Gate 3 result that depends on the trained CNN
-classifier - replacing the with-flip results committed so far, not just the
-single seed-42 recheck in kaggle/recheck-augmentation/.
+classifier - replacing the with-flip results committed so far, not just a
+single-seed recheck (see kaggle/README.md for how this kernel came about;
+the cheaper pilot kernels that led here have since been retired).
 
 Does NOT touch anything BiomedCLIP-based (retrieval, text-robustness,
 classification fusion baseline, contrastive projection/fine-tune) - none of
@@ -9,11 +10,11 @@ those use the CNN classifier or its augmentation, so they're unaffected and
 not rerun here.
 
 Reuses the seed-42 main checkpoint already trained without the flip
-(uploaded as trustmed-vlm-no-flip-ckpt, from kaggle/recheck-augmentation/) -
-no need to pay for that training again. Trains the 5 remaining checkpoints
-this project's full Gate 1 + Gate 3 CI needs: dropout-42, main-43, main-44,
-dropout-43, dropout-44. Same hyperparameters as every prior run: DenseNet-121,
-224px, 15 epochs, batch 32.
+(uploaded as trustmed-vlm-no-flip-ckpt) - no need to pay for that training
+again. Trains the 5 remaining checkpoints this project's full Gate 1 +
+Gate 3 CI needs: dropout-42, main-43, main-44, dropout-43, dropout-44.
+Same hyperparameters as every prior run: DenseNet-121, 224px, 15 epochs,
+batch 32.
 """
 import json
 import os

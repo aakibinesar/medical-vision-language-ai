@@ -94,20 +94,24 @@ real BiomedCLIP load and inference (not mocked).
 ## Quickstart — real full-scale training (Kaggle API)
 
 This is what actually produced everything in `results/` and the technical
-report. Three kernels — `kaggle/full-run/` (training + Gate 3 + error
-analysis), `kaggle/fusion-retrieval/` (the genuine fusion test, multi-seed
-capable), and `kaggle/seed-repeats/` (repeated-seed CNN training for the
-Gate 1 confidence interval). See `kaggle/README.md` for the full
-walkthrough and gotchas; short version:
+report. Four kernels — `kaggle/full-run/` (training + Gate 1-3 + error
+analysis, plus retrieval/text-robustness/classification-fusion), `kaggle/
+fusion-retrieval/` (the genuine, unconfounded fusion test, multi-seed
+capable), `kaggle/fusion-finetune/` (the backbone fine-tuning follow-up —
+a negative result), and `kaggle/no-flip-full-ci/` (full repeated-seed
+Gate 1/Gate 3 retrain after a pipeline audit fix). See `kaggle/README.md`
+for the full walkthrough, gotchas, and why earlier kernels were retired.
+Short version:
 
 ```bash
-# 1. Push src/ as a private Kaggle dataset (shared by all three kernels)
+# 1. Push src/ as a private Kaggle dataset (shared by every kernel)
 cd src && kaggle datasets create -p .   # (needs a dataset-metadata.json; see kaggle/README.md)
 
 # 2. Push and run whichever pipeline(s) you need as a GPU kernel
-cd ../kaggle/full-run && kaggle kernels push -p .          # training + Gate 3 + error analysis
-cd ../fusion-retrieval && kaggle kernels push -p .         # genuine fusion test
-cd ../seed-repeats && kaggle kernels push -p .             # 2 more CNN seeds for Gate 1 CI
+cd ../kaggle/full-run && kaggle kernels push -p .           # training + Gate 1-3 + error analysis
+cd ../fusion-retrieval && kaggle kernels push -p .          # genuine fusion test
+cd ../fusion-finetune && kaggle kernels push -p .           # backbone fine-tuning follow-up
+cd ../no-flip-full-ci && kaggle kernels push -p .           # full retrain after the pipeline audit fix
 
 # 3. Poll status, then fetch output once complete
 kaggle kernels status <owner>/trustmed-vlm-full-run

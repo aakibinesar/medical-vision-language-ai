@@ -193,8 +193,14 @@ verdict (nominal small-scale "win" → full-scale loss). Full numbers:
   experiment has its own confound though: it only ever trained against 128
   in-batch negatives per step versus the frozen approach's full 2,568-pair
   negative pool, so "backbone adaptation overfits" and "the training signal
-  was too weak" can't be cleanly separated from this result alone. See
-  `reports/technical_report.md` Section 7.
+  was too weak" can't be cleanly separated from this result alone. Tried to
+  fix this directly with a larger batch (up to the full 2,568-example
+  training set) - every attempt (2568, 512, 256) hit CUDA out-of-memory on
+  the P100's 16GB; the real ceiling sits just above 128, too low to
+  meaningfully close the gap. Documented as a hit hardware ceiling, not an
+  abandoned thread - a MoCo-style memory bank of cached negatives is the
+  well-scoped remaining future work. See `reports/technical_report.md`
+  Section 7.
 - The shortcut probe shows the representations encode acquisition source
   almost perfectly; this doesn't by itself prove the classifier's
   predictions depend on it, only that the information is present and usable.

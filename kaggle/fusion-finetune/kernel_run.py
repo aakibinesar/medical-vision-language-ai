@@ -7,16 +7,31 @@ letting the backbone adapt help beyond training just the two linear
 projection heads, or does it overfit on ~2,568 real pairs? Reuses the same
 tested src/ scripts as every other kernel.
 
-A first pilot (seed 42, 12 epochs, batch 64, ~77 min) found training loss
-still dropping with no plateau and validation Recall@1 not yet trending
-upward - inconclusive, not converged. This run extends it: more epochs
-(40, up from 12) so it actually has room to converge, and a bigger batch
-(128, up from 64) to strengthen the in-batch negative pool used by the
-contrastive loss each step (a batch of 64 negatives is much weaker than the
-frozen approach's full 2,568-pair negative pool - the most likely reason
-the pilot underperformed on image->text specifically). Still seed 42 only,
-for direct comparison against the pilot - a 3-seed CI is a separate,
-later decision once this shows whether fine-tuning is worth it at all.
+A first pilot (seed 42, 12 epochs, batch 64) was inconclusive (loss still
+dropping, no plateau). A second attempt (seed 42, 40 epochs, batch 128)
+gave a clear textbook overfitting curve - validation Recall@1 peaked at
+epoch 6/40 and never recovered - and the best checkpoint only tied the
+frozen-heads-only result. But that run has its own confound: at batch 128
+it only ever trained against 127 in-batch negatives per step, versus the
+frozen approach's full 2,568-pair negative pool every step - a much weaker
+training signal, entirely independent of whether backbone adaptation
+itself is a good idea. Three attempts to fix this all hit the same wall -
+CUDA OOM on the P100's 16GB, with 2 unfrozen ViT + 2 unfrozen BERT blocks:
+--batch-size 2568 (full training set, matching the frozen approach's
+negative pool exactly - "Tried to allocate 5.79 GiB"), --batch-size 512
+("Tried to allocate 1.50 GiB"), and --batch-size 256 ("Tried to allocate
+768 MiB"). The shrinking overflow suggests the true ceiling sits just above
+128 - maybe 150-190 - but even hitting it exactly would only take the
+negative pool from 127 to ~180, nowhere near enough to meaningfully close
+the gap to the frozen approach's 2,568. Diminishing returns: decided not to
+keep guessing narrower batch sizes for a fix that wouldn't resolve the
+confound even in the best case. **Documented as a hit hardware ceiling
+instead** (see `reports/technical_report.md` Section 7) - closing this
+confound properly would need a different technique entirely (e.g. a
+MoCo-style memory bank of cached past-batch negatives, which decouples
+negative-pool size from GPU memory), not a bigger batch. This script is
+left running its last successful, already-reported configuration
+(seed 42, 40 epochs, batch 128) below, for reproducibility.
 """
 import json
 import os

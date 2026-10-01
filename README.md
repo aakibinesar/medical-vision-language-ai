@@ -211,3 +211,10 @@ details.
       confusion-matrix labeling bug, an unseeded abstention baseline) and
       every checkpoint/result above was fully retrained/rerun afterward —
       see the pipeline-fix note above and in `MODEL_CARD.md`.
+
+## License
+
+Code: MIT (see `LICENSE`). This does not cover the downloaded datasets
+(IU X-Ray, Chest X-Ray Pneumonia), which remain under their own separate
+licenses — see `DATASET_DATASHEET.md` — and are not included in this
+repository.
